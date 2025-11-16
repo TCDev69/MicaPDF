@@ -61,6 +61,16 @@ namespace MicaPDF
             if (appWindow != null)
             {
                 appWindow.Resize(new Windows.Graphics.SizeInt32(1400, 900));
+                
+                // Set window icon
+                try
+                {
+                    appWindow.SetIcon("MicaPDF.ico");
+                }
+                catch
+                {
+                    // Ignore if icon not found
+                }
             }
             
             // Restore side menu state (with try-catch for safety)
@@ -110,6 +120,21 @@ namespace MicaPDF
         {
             try
             {
+                // Check if this is the first launch
+                var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+                bool hasShownPrompt = false;
+                
+                if (localSettings.Values.ContainsKey("HasShownDefaultReaderPrompt"))
+                {
+                    hasShownPrompt = (bool)localSettings.Values["HasShownDefaultReaderPrompt"];
+                }
+
+                // Only show the prompt if it hasn't been shown before
+                if (hasShownPrompt)
+                {
+                    return;
+                }
+
                 // Wait a bit more to ensure window is visible
                 await System.Threading.Tasks.Task.Delay(500);
 
@@ -135,6 +160,9 @@ namespace MicaPDF
                         OpenDefaultAppsSettings();
                     }
                 }
+
+                // Mark that we've shown the prompt
+                localSettings.Values["HasShownDefaultReaderPrompt"] = true;
             }
             catch
             {
