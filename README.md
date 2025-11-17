@@ -26,9 +26,7 @@ A modern PDF viewer for Windows 11 with translucent Mica background and pen anno
 ## 🚀 Installation
 
 ### Option 1: Download Release (Recommended)
-1. Download `MicaPDF.exe` from the Releases page
-2. Run `RegisterFileAssociation.ps1` as Administrator to set as default PDF viewer
-3. Double-click any PDF file to open with MicaPDF
+1. Download and run `MicaPDF-Setup-x.exe` from the Releases page
 
 ### Option 2: Build from Source
 ```powershell
@@ -79,39 +77,27 @@ PDFViewer/
 ├── MainWindow.xaml/cs       # Main window with all functionality
 ├── PDFViewer.csproj         # Project configuration
 ├── app.manifest             # Windows compatibility settings
-├── RegisterFileAssociation.ps1    # Register as default PDF viewer
-├── UnregisterFileAssociation.ps1  # Remove file association
 └── README.md                # This file
 ```
 
 ## 🔧 Set as Default PDF Viewer
 
-### Method 1: Using PowerShell Script (Recommended)
-1. Run `RegisterFileAssociation.ps1` as Administrator
-2. Follow the on-screen instructions
-
-### Method 2: Windows Settings
+### Method 1: Windows Settings
 1. Right-click any PDF file
 2. Select "Open with" > "Choose another app"
 3. Check "Always use this app to open .pdf files"
 4. Select MicaPDF (browse to exe if not listed)
 
-### Method 3: Windows Settings App
+### Method 2: Windows Settings App
 1. Open Settings > Apps > Default apps
 2. Search for "MicaPDF"
 3. Set as default for .pdf files
-
-## 🗑️ Uninstall
-
-1. Run `UnregisterFileAssociation.ps1` as Administrator
-2. Delete the MicaPDF.exe file
-3. (Optional) Delete saved settings: `%LocalAppData%\Packages\[AppName]\LocalState`
 
 ## 📝 Notes
 
 - **Annotation Export**: Annotations are saved as PNG images, not embedded in PDF
 - **Page-by-Page**: Each page with annotations must be saved individually
-- **File Naming**: Saved files are named `[original_name]_page[number].png`
+- **File Naming**: Saved files are named `[original_name]_[number].png`
 
 ## 🤝 Contributing
 
