@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MicaPDF")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a4c6c42a38f84594e3f0a1d666cd89db107ca25e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cf04dccac1dda2acf1e7ce6e8c3bf012e742fab9")]
 [assembly: System.Reflection.AssemblyProductAttribute("MicaPDF")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MicaPDF")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

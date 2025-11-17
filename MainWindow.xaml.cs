@@ -34,6 +34,8 @@ namespace MicaPDF
         private SystemBackdropConfiguration? _configurationSource;
         private StorageFile? _currentFile;
         private bool _isPenModeEnabled = false;
+        private bool _isEraserModeEnabled = false;
+        private bool _isEraserActive = false;
         private Polyline? _currentStroke;
         private bool _isDrawing = false;
 
@@ -265,6 +267,9 @@ namespace MicaPDF
                     break;
                 case "penmode":
                     TogglePenMode();
+                    break;
+                case "eraser":
+                    ToggleEraserMode();
                     break;
                 case "clearink":
                     ClearInkAnnotations();
@@ -631,6 +636,13 @@ namespace MicaPDF
         {
             _isPenModeEnabled = !_isPenModeEnabled;
             
+            // Disable eraser if enabling pen
+            if (_isPenModeEnabled && _isEraserModeEnabled)
+            {
+                _isEraserModeEnabled = false;
+                EraserModeTextBlock.Text = "Enable Eraser";
+            }
+            
             if (_isPenModeEnabled)
             {
                 // Disable ScrollViewer manipulation when in pen mode
@@ -651,6 +663,37 @@ namespace MicaPDF
             }
         }
 
+        private void ToggleEraserMode()
+        {
+            _isEraserModeEnabled = !_isEraserModeEnabled;
+            
+            // Disable pen if enabling eraser
+            if (_isEraserModeEnabled && _isPenModeEnabled)
+            {
+                _isPenModeEnabled = false;
+                PenModeTextBlock.Text = "Enable Pen";
+            }
+            
+            if (_isEraserModeEnabled)
+            {
+                // Disable ScrollViewer manipulation when in eraser mode
+                PdfScrollViewer.HorizontalScrollMode = ScrollMode.Disabled;
+                PdfScrollViewer.VerticalScrollMode = ScrollMode.Disabled;
+                PdfScrollViewer.ZoomMode = ZoomMode.Disabled;
+                
+                EraserModeTextBlock.Text = "Disable Eraser";
+            }
+            else
+            {
+                // Re-enable ScrollViewer manipulation
+                PdfScrollViewer.HorizontalScrollMode = ScrollMode.Enabled;
+                PdfScrollViewer.VerticalScrollMode = ScrollMode.Enabled;
+                PdfScrollViewer.ZoomMode = ZoomMode.Enabled;
+                
+                EraserModeTextBlock.Text = "Enable Eraser";
+            }
+        }
+
         private void ClearInkAnnotations()
         {
             PdfInkCanvas.Children.Clear();
@@ -658,40 +701,95 @@ namespace MicaPDF
 
         private void InkCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
-            if (!_isPenModeEnabled) return;
-
-            _isDrawing = true;
-            _currentStroke = new Polyline
+            if (_isPenModeEnabled)
             {
-                Stroke = new SolidColorBrush(Microsoft.UI.Colors.Red),
-                StrokeThickness = 2,
-                StrokeLineJoin = PenLineJoin.Round,
-                StrokeStartLineCap = PenLineCap.Round,
-                StrokeEndLineCap = PenLineCap.Round
-            };
+                _isDrawing = true;
+                _currentStroke = new Polyline
+                {
+                    Stroke = new SolidColorBrush(Microsoft.UI.Colors.Red),
+                    StrokeThickness = 2,
+                    StrokeLineJoin = PenLineJoin.Round,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round
+                };
 
-            var point = e.GetCurrentPoint(PdfInkCanvas).Position;
-            _currentStroke.Points.Add(point);
-            PdfInkCanvas.Children.Add(_currentStroke);
-            
-            PdfInkCanvas.CapturePointer(e.Pointer);
+                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
+                _currentStroke.Points.Add(point);
+                PdfInkCanvas.Children.Add(_currentStroke);
+                
+                PdfInkCanvas.CapturePointer(e.Pointer);
+            }
+            else if (_isEraserModeEnabled)
+            {
+                // Start erasing when pointer is pressed
+                _isEraserActive = true;
+                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
+                EraseStrokesAtPoint(point);
+                PdfInkCanvas.CapturePointer(e.Pointer);
+            }
         }
 
         private void InkCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
         {
-            if (!_isPenModeEnabled || !_isDrawing || _currentStroke == null) return;
-
-            var point = e.GetCurrentPoint(PdfInkCanvas).Position;
-            _currentStroke.Points.Add(point);
+            if (_isPenModeEnabled && _isDrawing && _currentStroke != null)
+            {
+                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
+                _currentStroke.Points.Add(point);
+            }
+            else if (_isEraserModeEnabled && _isEraserActive)
+            {
+                // Continue erasing only while pointer is pressed
+                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
+                EraseStrokesAtPoint(point);
+            }
         }
 
         private void InkCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
-            if (!_isPenModeEnabled) return;
+            if (_isPenModeEnabled)
+            {
+                _isDrawing = false;
+                _currentStroke = null;
+                PdfInkCanvas.ReleasePointerCapture(e.Pointer);
+            }
+            else if (_isEraserModeEnabled)
+            {
+                _isEraserActive = false;
+                PdfInkCanvas.ReleasePointerCapture(e.Pointer);
+            }
+        }
 
-            _isDrawing = false;
-            _currentStroke = null;
-            PdfInkCanvas.ReleasePointerCapture(e.Pointer);
+        private void EraseStrokesAtPoint(Windows.Foundation.Point point)
+        {
+            const double eraserRadius = 20; // Size of eraser
+            var strokesToRemove = new List<UIElement>();
+
+            foreach (var child in PdfInkCanvas.Children)
+            {
+                if (child is Polyline polyline)
+                {
+                    // Check if any point in the polyline is within eraser radius
+                    foreach (var strokePoint in polyline.Points)
+                    {
+                        double distance = Math.Sqrt(
+                            Math.Pow(strokePoint.X - point.X, 2) + 
+                            Math.Pow(strokePoint.Y - point.Y, 2)
+                        );
+
+                        if (distance <= eraserRadius)
+                        {
+                            strokesToRemove.Add(polyline);
+                            break; // Remove entire stroke if any point is hit
+                        }
+                    }
+                }
+            }
+
+            // Remove all strokes that were hit
+            foreach (var stroke in strokesToRemove)
+            {
+                PdfInkCanvas.Children.Remove(stroke);
+            }
         }
 
         private async Task SavePdfWithAnnotations()

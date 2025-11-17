@@ -56,15 +56,23 @@
                         <FontIcon Glyph="&#xE76D;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock x:ConnectionId='5' x:Name="PenModeTextBlock" Text="Enable Pen"/>
+                        <TextBlock x:ConnectionId='6' x:Name="PenModeTextBlock" Text="Enable Pen"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="clearink">
+                <NavigationViewItem Tag="eraser">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE75C;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock Text="Clear Annotations"/>
+                        <TextBlock x:ConnectionId='5' x:Name="EraserModeTextBlock" Text="Enable Eraser"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+                <NavigationViewItem Tag="clearink">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE74D;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="Clear All Annotations"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItemSeparator/>
@@ -79,7 +87,7 @@
             </NavigationView.MenuItems>
 
             <NavigationView.PaneFooter>
-                <NavigationViewItem x:ConnectionId='6' Content="Go to page..." Tag="gotopage" Margin="0,0,0,8"                             >
+                <NavigationViewItem x:ConnectionId='7' Content="Go to page..." Tag="gotopage" Margin="0,0,0,8"                             >
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8CB;"/>
                     </NavigationViewItem.Icon>
@@ -88,7 +96,7 @@
 
             <Grid>
                 <!-- Dialog for go to page -->
-                <ContentDialog x:ConnectionId='7' x:Name="GoToPageDialog"
+                <ContentDialog x:ConnectionId='8' x:Name="GoToPageDialog"
                               Title="Go to page"
                               PrimaryButtonText="Go"
                               CloseButtonText="Cancel"
@@ -96,7 +104,7 @@
                                                                                     >
                     <StackPanel Spacing="12">
                         <TextBlock Text="Enter the page number:" TextWrapping="Wrap"/>
-                        <NumberBox x:ConnectionId='21' x:Name="PageNumberBox" 
+                        <NumberBox x:ConnectionId='22' x:Name="PageNumberBox" 
                                   PlaceholderText="Page number"
                                   SpinButtonPlacementMode="Hidden"
                                   Minimum="1"
@@ -109,10 +117,10 @@
 
                 <!-- Hidden elements for code -->
                 <StackPanel Visibility="Collapsed">
-                    <TextBlock x:ConnectionId='17' x:Name="FileNameTextBlock"/>
-                    <TextBlock x:ConnectionId='18' x:Name="StatusTextBlock"/>
-                    <TextBlock x:ConnectionId='19' x:Name="PageInfoTextBlock"/>
-                    <TextBlock x:ConnectionId='20' x:Name="ZoomLevelTextBlock"/>
+                    <TextBlock x:ConnectionId='18' x:Name="FileNameTextBlock"/>
+                    <TextBlock x:ConnectionId='19' x:Name="StatusTextBlock"/>
+                    <TextBlock x:ConnectionId='20' x:Name="PageInfoTextBlock"/>
+                    <TextBlock x:ConnectionId='21' x:Name="ZoomLevelTextBlock"/>
                 </StackPanel>
                 
                 <!-- Area contenuto principale -->
@@ -124,7 +132,7 @@
                     </Grid.RowDefinitions>
                     
                     <!-- Nome file nella titlebar -->
-                    <TextBlock x:ConnectionId='8' x:Name="TitleBarFileName"
+                    <TextBlock x:ConnectionId='9' x:Name="TitleBarFileName"
                               Grid.Row="0"
                               Text=""
                               FontSize="12"
@@ -134,7 +142,7 @@
                               Margin="48,0"/>
                     
                     <!-- Visualizzatore PDF -->
-                    <Border x:ConnectionId='9' x:Name="ViewerPanel" 
+                    <Border x:ConnectionId='10' x:Name="ViewerPanel" 
                             Grid.Row="1"
                             Background="{ThemeResource LayerFillColorDefaultBrush}"
                             CornerRadius="8"
@@ -144,7 +152,7 @@
                                                    >
                         
                         <Grid>
-                            <ScrollViewer x:ConnectionId='10' x:Name="PdfScrollViewer"
+                            <ScrollViewer x:ConnectionId='11' x:Name="PdfScrollViewer"
                                         HorizontalScrollBarVisibility="Auto"
                                         VerticalScrollBarVisibility="Auto"
                                         ZoomMode="Enabled"
@@ -155,18 +163,18 @@
                                         IsHorizontalRailEnabled="False"
                                         IsVerticalRailEnabled="False"
                                         ManipulationMode="All">
-                                <Grid x:ConnectionId='14' x:Name="PdfContainer" 
+                                <Grid x:ConnectionId='15' x:Name="PdfContainer" 
                                       HorizontalAlignment="Center" 
                                       VerticalAlignment="Center"
                                       Padding="32">
                                     
-                                    <Image x:ConnectionId='15' x:Name="PdfImage" 
+                                    <Image x:ConnectionId='16' x:Name="PdfImage" 
                                            Stretch="Uniform"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"/>
                                     
                                     <!-- Canvas for pen drawing overlay -->
-                                    <Canvas x:ConnectionId='16' x:Name="PdfInkCanvas"
+                                    <Canvas x:ConnectionId='17' x:Name="PdfInkCanvas"
                                            HorizontalAlignment="Stretch"
                                            VerticalAlignment="Stretch"
                                            Background="Transparent"
@@ -177,7 +185,7 @@
                             </ScrollViewer>
 
                             <!-- Welcome screen stile Store -->
-                            <Grid x:ConnectionId='11' x:Name="WelcomePanel" Padding="48">
+                            <Grid x:ConnectionId='12' x:Name="WelcomePanel" Padding="48">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
@@ -211,7 +219,7 @@
                                     </StackPanel>
 
                                     <!-- Pulsante azione principale -->
-                                    <Button x:ConnectionId='12'                             
+                                    <Button x:ConnectionId='13'                             
                                            HorizontalAlignment="Center"
                                            Style="{StaticResource AccentButtonStyle}"
                                            Padding="32,12">
@@ -222,7 +230,7 @@
                                     </Button>
 
                                     <!-- Loading bar -->
-                                    <ProgressBar x:ConnectionId='13' x:Name="LoadingProgressBar"
+                                    <ProgressBar x:ConnectionId='14' x:Name="LoadingProgressBar"
                                                 IsIndeterminate="True"
                                                 Visibility="Collapsed"
                                                 Margin="0,8,0,0"/>

@@ -59,12 +59,20 @@
                         <TextBlock x:Name="PenModeTextBlock" Text="Enable Pen"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="clearink">
+                <NavigationViewItem Tag="eraser">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE75C;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock Text="Clear Annotations"/>
+                        <TextBlock x:Name="EraserModeTextBlock" Text="Enable Eraser"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+                <NavigationViewItem Tag="clearink">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE74D;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="Clear All Annotations"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItemSeparator/>
