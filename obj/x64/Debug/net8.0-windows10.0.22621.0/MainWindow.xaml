@@ -19,7 +19,7 @@
                 <NavigationViewItem Icon="Document" Content="Viewer" Tag="viewer" IsSelected="True"/>
                 <NavigationViewItem Icon="OpenFile" Content="Open File" Tag="open"/>
                 <NavigationViewItemSeparator/>
-                <NavigationViewItemHeader x:ConnectionId='3' x:Name="ZoomHeaderTextBlock" Content="Zoom: 100%"/>
+                <NavigationViewItemHeader x:ConnectionId='3' x:Name="ZoomHeaderTextBlock" Content="Zoom: 50%"/>
                 <NavigationViewItem Tag="zoomin">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="ZoomIn"/>
@@ -43,13 +43,21 @@
                         <FontIcon Glyph="&#xE71E;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock Text="Reset Zoom (100%)"/>
+                        <TextBlock Text="Reset Zoom (50%)"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItemSeparator/>
                 <NavigationViewItemHeader x:ConnectionId='4' x:Name="PageHeaderTextBlock" Content="Page 1 / 1"/>
-                <NavigationViewItem Icon="Previous" Content="Previous Page" Tag="prevpage"/>
                 <NavigationViewItem Icon="Next" Content="Next Page" Tag="nextpage"/>
+                <NavigationViewItem Icon="Previous" Content="Previous Page" Tag="prevpage"/>
+                <NavigationViewItem Tag="doublepagemode">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE89A;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:ConnectionId='7' x:Name="DoublePageModeTextBlock" Text="Enable Double Page"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
                 <NavigationViewItemSeparator/>
                 <NavigationViewItem Tag="penmode">
                     <NavigationViewItem.Icon>
@@ -87,7 +95,7 @@
             </NavigationView.MenuItems>
 
             <NavigationView.PaneFooter>
-                <NavigationViewItem x:ConnectionId='7' Content="Go to page..." Tag="gotopage" Margin="0,0,0,8"                             >
+                <NavigationViewItem x:ConnectionId='8' Content="Go to page..." Tag="gotopage" Margin="0,0,0,8"                             >
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8CB;"/>
                     </NavigationViewItem.Icon>
@@ -96,7 +104,7 @@
 
             <Grid>
                 <!-- Dialog for go to page -->
-                <ContentDialog x:ConnectionId='8' x:Name="GoToPageDialog"
+                <ContentDialog x:ConnectionId='9' x:Name="GoToPageDialog"
                               Title="Go to page"
                               PrimaryButtonText="Go"
                               CloseButtonText="Cancel"
@@ -104,7 +112,7 @@
                                                                                     >
                     <StackPanel Spacing="12">
                         <TextBlock Text="Enter the page number:" TextWrapping="Wrap"/>
-                        <NumberBox x:ConnectionId='22' x:Name="PageNumberBox" 
+                        <NumberBox x:ConnectionId='29' x:Name="PageNumberBox" 
                                   PlaceholderText="Page number"
                                   SpinButtonPlacementMode="Hidden"
                                   Minimum="1"
@@ -117,10 +125,10 @@
 
                 <!-- Hidden elements for code -->
                 <StackPanel Visibility="Collapsed">
-                    <TextBlock x:ConnectionId='18' x:Name="FileNameTextBlock"/>
-                    <TextBlock x:ConnectionId='19' x:Name="StatusTextBlock"/>
-                    <TextBlock x:ConnectionId='20' x:Name="PageInfoTextBlock"/>
-                    <TextBlock x:ConnectionId='21' x:Name="ZoomLevelTextBlock"/>
+                    <TextBlock x:ConnectionId='25' x:Name="FileNameTextBlock"/>
+                    <TextBlock x:ConnectionId='26' x:Name="StatusTextBlock"/>
+                    <TextBlock x:ConnectionId='27' x:Name="PageInfoTextBlock"/>
+                    <TextBlock x:ConnectionId='28' x:Name="ZoomLevelTextBlock"/>
                 </StackPanel>
                 
                 <!-- Area contenuto principale -->
@@ -132,7 +140,7 @@
                     </Grid.RowDefinitions>
                     
                     <!-- Nome file nella titlebar -->
-                    <TextBlock x:ConnectionId='9' x:Name="TitleBarFileName"
+                    <TextBlock x:ConnectionId='10' x:Name="TitleBarFileName"
                               Grid.Row="0"
                               Text=""
                               FontSize="12"
@@ -142,7 +150,7 @@
                               Margin="48,0"/>
                     
                     <!-- Visualizzatore PDF -->
-                    <Border x:ConnectionId='10' x:Name="ViewerPanel" 
+                    <Border x:ConnectionId='11' x:Name="ViewerPanel" 
                             Grid.Row="1"
                             Background="{ThemeResource LayerFillColorDefaultBrush}"
                             CornerRadius="8"
@@ -152,7 +160,7 @@
                                                    >
                         
                         <Grid>
-                            <ScrollViewer x:ConnectionId='11' x:Name="PdfScrollViewer"
+                            <ScrollViewer x:ConnectionId='12' x:Name="PdfScrollViewer"
                                         HorizontalScrollBarVisibility="Auto"
                                         VerticalScrollBarVisibility="Auto"
                                         ZoomMode="Enabled"
@@ -163,29 +171,68 @@
                                         IsHorizontalRailEnabled="False"
                                         IsVerticalRailEnabled="False"
                                         ManipulationMode="All">
-                                <Grid x:ConnectionId='15' x:Name="PdfContainer" 
+                                <Grid x:ConnectionId='16' x:Name="PdfContainer" 
                                       HorizontalAlignment="Center" 
                                       VerticalAlignment="Center"
                                       Padding="32">
                                     
-                                    <Image x:ConnectionId='16' x:Name="PdfImage" 
-                                           Stretch="Uniform"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"/>
-                                    
-                                    <!-- Canvas for pen drawing overlay -->
-                                    <Canvas x:ConnectionId='17' x:Name="PdfInkCanvas"
-                                           HorizontalAlignment="Stretch"
-                                           VerticalAlignment="Stretch"
-                                           Background="Transparent"
+                                    <!-- Single page view -->
+                                    <Grid x:ConnectionId='17' x:Name="SinglePageContainer">
+                                        <Image x:ConnectionId='23' x:Name="PdfImage" 
+                                               Stretch="Uniform"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                        
+                                        <!-- Canvas for pen drawing overlay -->
+                                        <Canvas x:ConnectionId='24' x:Name="PdfInkCanvas"
+                                               HorizontalAlignment="Stretch"
+                                               VerticalAlignment="Stretch"
+                                               Background="Transparent"
+                                                                                        
                                                                                     
-                                                                                
-                                                                                      />
+                                                                                          />
+                                    </Grid>
+                                    
+                                    <!-- Double page view -->
+                                    <StackPanel x:ConnectionId='18' x:Name="DoublePageContainer" 
+                                                Orientation="Horizontal" 
+                                                Spacing="16"
+                                                Visibility="Collapsed">
+                                        <Grid>
+                                            <Image x:ConnectionId='21' x:Name="PdfImageLeft" 
+                                                   Stretch="Uniform"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                            
+                                            <Canvas x:ConnectionId='22' x:Name="PdfInkCanvasLeft"
+                                                   HorizontalAlignment="Stretch"
+                                                   VerticalAlignment="Stretch"
+                                                   Background="Transparent"
+                                                                                            
+                                                                                        
+                                                                                              />
+                                        </Grid>
+                                        
+                                        <Grid>
+                                            <Image x:ConnectionId='19' x:Name="PdfImageRight" 
+                                                   Stretch="Uniform"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                            
+                                            <Canvas x:ConnectionId='20' x:Name="PdfInkCanvasRight"
+                                                   HorizontalAlignment="Stretch"
+                                                   VerticalAlignment="Stretch"
+                                                   Background="Transparent"
+                                                                                            
+                                                                                        
+                                                                                              />
+                                        </Grid>
+                                    </StackPanel>
                                 </Grid>
                             </ScrollViewer>
 
                             <!-- Welcome screen stile Store -->
-                            <Grid x:ConnectionId='12' x:Name="WelcomePanel" Padding="48">
+                            <Grid x:ConnectionId='13' x:Name="WelcomePanel" Padding="48">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
@@ -219,7 +266,7 @@
                                     </StackPanel>
 
                                     <!-- Pulsante azione principale -->
-                                    <Button x:ConnectionId='13'                             
+                                    <Button x:ConnectionId='14'                             
                                            HorizontalAlignment="Center"
                                            Style="{StaticResource AccentButtonStyle}"
                                            Padding="32,12">
@@ -230,7 +277,7 @@
                                     </Button>
 
                                     <!-- Loading bar -->
-                                    <ProgressBar x:ConnectionId='14' x:Name="LoadingProgressBar"
+                                    <ProgressBar x:ConnectionId='15' x:Name="LoadingProgressBar"
                                                 IsIndeterminate="True"
                                                 Visibility="Collapsed"
                                                 Margin="0,8,0,0"/>

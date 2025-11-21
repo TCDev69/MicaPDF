@@ -29,13 +29,14 @@ namespace MicaPDF
     {
         private PdfDocument? _pdfDocument;
         private uint _currentPageIndex = 0;
-        private double _currentZoom = 1.0;
+        private double _currentZoom = 0.5;
         private MicaController? _micaController;
         private SystemBackdropConfiguration? _configurationSource;
         private StorageFile? _currentFile;
         private bool _isPenModeEnabled = false;
         private bool _isEraserModeEnabled = false;
         private bool _isEraserActive = false;
+        private bool _isDoublePageMode = false;
         private Polyline? _currentStroke;
         private bool _isDrawing = false;
 
@@ -262,6 +263,9 @@ namespace MicaPDF
                 case "nextpage":
                     await NextPage();
                     break;
+                case "doublepagemode":
+                    await ToggleDoublePageMode();
+                    break;
                 case "gotopage":
                     await ShowGoToPageDialog();
                     break;
@@ -403,6 +407,9 @@ namespace MicaPDF
 
                 _currentFile = file;
                 _currentPageIndex = 0;
+                _currentZoom = 0.5;
+                ZoomLevelTextBlock.Text = "50%";
+                ZoomHeaderTextBlock.Content = "Zoom: 50%";
                 FileNameTextBlock.Text = file.Name;
                 TitleBarFileName.Text = file.Name;
                 WelcomePanel.Visibility = Visibility.Collapsed;
@@ -425,26 +432,88 @@ namespace MicaPDF
 
             try
             {
-                using (var page = _pdfDocument.GetPage(_currentPageIndex))
+                if (_isDoublePageMode)
                 {
-                    var renderOptions = new PdfPageRenderOptions
+                    // Render two pages side by side
+                    // Left page (current page)
+                    if (_currentPageIndex < _pdfDocument.PageCount)
                     {
-                        DestinationWidth = (uint)(page.Size.Width * _currentZoom * 2), // 2x for high quality
-                        DestinationHeight = (uint)(page.Size.Height * _currentZoom * 2)
-                    };
+                        using (var page = _pdfDocument.GetPage(_currentPageIndex))
+                        {
+                            var renderOptions = new PdfPageRenderOptions
+                            {
+                                DestinationWidth = (uint)(page.Size.Width * _currentZoom * 2),
+                                DestinationHeight = (uint)(page.Size.Height * _currentZoom * 2)
+                            };
 
-                    using (var stream = new InMemoryRandomAccessStream())
+                            using (var stream = new InMemoryRandomAccessStream())
+                            {
+                                await page.RenderToStreamAsync(stream, renderOptions);
+                                
+                                var bitmapImage = new BitmapImage();
+                                await bitmapImage.SetSourceAsync(stream);
+                                PdfImageLeft.Source = bitmapImage;
+                            }
+                        }
+                    }
+                    
+                    // Right page (next page)
+                    if (_currentPageIndex + 1 < _pdfDocument.PageCount)
                     {
-                        await page.RenderToStreamAsync(stream, renderOptions);
+                        using (var page = _pdfDocument.GetPage(_currentPageIndex + 1))
+                        {
+                            var renderOptions = new PdfPageRenderOptions
+                            {
+                                DestinationWidth = (uint)(page.Size.Width * _currentZoom * 2),
+                                DestinationHeight = (uint)(page.Size.Height * _currentZoom * 2)
+                            };
+
+                            using (var stream = new InMemoryRandomAccessStream())
+                            {
+                                await page.RenderToStreamAsync(stream, renderOptions);
+                                
+                                var bitmapImage = new BitmapImage();
+                                await bitmapImage.SetSourceAsync(stream);
+                                PdfImageRight.Source = bitmapImage;
+                            }
+                        }
                         
-                        var bitmapImage = new BitmapImage();
-                        await bitmapImage.SetSourceAsync(stream);
-                        PdfImage.Source = bitmapImage;
+                        PageInfoTextBlock.Text = $"{_currentPageIndex + 1}-{_currentPageIndex + 2} / {_pdfDocument.PageCount}";
+                        PageHeaderTextBlock.Content = $"Page {_currentPageIndex + 1}-{_currentPageIndex + 2} / {_pdfDocument.PageCount}";
+                    }
+                    else
+                    {
+                        // Only one page left
+                        PdfImageRight.Source = null;
+                        PageInfoTextBlock.Text = $"{_currentPageIndex + 1} / {_pdfDocument.PageCount}";
+                        PageHeaderTextBlock.Content = $"Page {_currentPageIndex + 1} / {_pdfDocument.PageCount}";
                     }
                 }
+                else
+                {
+                    // Single page mode
+                    using (var page = _pdfDocument.GetPage(_currentPageIndex))
+                    {
+                        var renderOptions = new PdfPageRenderOptions
+                        {
+                            DestinationWidth = (uint)(page.Size.Width * _currentZoom * 2), // 2x for high quality
+                            DestinationHeight = (uint)(page.Size.Height * _currentZoom * 2)
+                        };
 
-                PageInfoTextBlock.Text = $"{_currentPageIndex + 1} / {_pdfDocument.PageCount}";
-                PageHeaderTextBlock.Content = $"Page {_currentPageIndex + 1} / {_pdfDocument.PageCount}";
+                        using (var stream = new InMemoryRandomAccessStream())
+                        {
+                            await page.RenderToStreamAsync(stream, renderOptions);
+                            
+                            var bitmapImage = new BitmapImage();
+                            await bitmapImage.SetSourceAsync(stream);
+                            PdfImage.Source = bitmapImage;
+                        }
+                    }
+
+                    PageInfoTextBlock.Text = $"{_currentPageIndex + 1} / {_pdfDocument.PageCount}";
+                    PageHeaderTextBlock.Content = $"Page {_currentPageIndex + 1} / {_pdfDocument.PageCount}";
+                }
+                
                 UpdateNavigationButtons();
             }
             catch (Exception ex)
@@ -467,7 +536,15 @@ namespace MicaPDF
         {
             if (_currentPageIndex > 0)
             {
-                _currentPageIndex--;
+                if (_isDoublePageMode)
+                {
+                    // In double page mode, move back by 2 pages
+                    _currentPageIndex = _currentPageIndex >= 2 ? _currentPageIndex - 2 : 0;
+                }
+                else
+                {
+                    _currentPageIndex--;
+                }
                 await RenderCurrentPage();
             }
         }
@@ -481,7 +558,15 @@ namespace MicaPDF
         {
             if (_pdfDocument != null && _currentPageIndex < _pdfDocument.PageCount - 1)
             {
-                _currentPageIndex++;
+                if (_isDoublePageMode)
+                {
+                    // In double page mode, move forward by 2 pages
+                    _currentPageIndex = Math.Min(_currentPageIndex + 2, _pdfDocument.PageCount - 1);
+                }
+                else
+                {
+                    _currentPageIndex++;
+                }
                 await RenderCurrentPage();
             }
         }
@@ -519,9 +604,9 @@ namespace MicaPDF
 
         private async System.Threading.Tasks.Task ZoomReset()
         {
-            _currentZoom = 1.0;
-            ZoomLevelTextBlock.Text = "100%";
-            ZoomHeaderTextBlock.Content = "Zoom: 100%";
+            _currentZoom = 0.5;
+            ZoomLevelTextBlock.Text = "50%";
+            ZoomHeaderTextBlock.Content = "Zoom: 50%";
             await RenderCurrentPage();
         }
 
@@ -624,9 +709,17 @@ namespace MicaPDF
                 return;
             }
 
-            if (PageNumberBox.Value >= 1 && PageNumberBox.Value <= _pdfDocument.PageCount)
+            double requestedValue = PageNumberBox.Value;
+
+            if (double.TryParse(PageNumberBox.Text, out double parsedValue))
             {
-                _currentPageIndex = (uint)(PageNumberBox.Value - 1);
+                requestedValue = parsedValue;
+                PageNumberBox.Value = parsedValue; // keep UI in sync
+            }
+
+            if (requestedValue >= 1 && requestedValue <= _pdfDocument.PageCount)
+            {
+                _currentPageIndex = (uint)(requestedValue - 1);
                 await RenderCurrentPage();
                 UpdateNavigationButtons();
             }
@@ -697,6 +790,39 @@ namespace MicaPDF
         private void ClearInkAnnotations()
         {
             PdfInkCanvas.Children.Clear();
+            if (_isDoublePageMode)
+            {
+                PdfInkCanvasLeft.Children.Clear();
+                PdfInkCanvasRight.Children.Clear();
+            }
+        }
+
+        private async Task ToggleDoublePageMode()
+        {
+            _isDoublePageMode = !_isDoublePageMode;
+            
+            if (_isDoublePageMode)
+            {
+                // Switch to double page view
+                SinglePageContainer.Visibility = Visibility.Collapsed;
+                DoublePageContainer.Visibility = Visibility.Visible;
+                DoublePageModeTextBlock.Text = "Disable Double Page";
+                
+                // Make sure we're on an even page (left page)
+                if (_currentPageIndex % 2 != 0 && _currentPageIndex > 0)
+                {
+                    _currentPageIndex--;
+                }
+            }
+            else
+            {
+                // Switch back to single page view
+                SinglePageContainer.Visibility = Visibility.Visible;
+                DoublePageContainer.Visibility = Visibility.Collapsed;
+                DoublePageModeTextBlock.Text = "Enable Double Page";
+            }
+            
+            await RenderCurrentPage();
         }
 
         private void InkCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)

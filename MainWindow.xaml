@@ -19,7 +19,7 @@
                 <NavigationViewItem Icon="Document" Content="Viewer" Tag="viewer" IsSelected="True"/>
                 <NavigationViewItem Icon="OpenFile" Content="Open File" Tag="open"/>
                 <NavigationViewItemSeparator/>
-                <NavigationViewItemHeader x:Name="ZoomHeaderTextBlock" Content="Zoom: 100%"/>
+                <NavigationViewItemHeader x:Name="ZoomHeaderTextBlock" Content="Zoom: 50%"/>
                 <NavigationViewItem Tag="zoomin">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="ZoomIn"/>
@@ -43,13 +43,21 @@
                         <FontIcon Glyph="&#xE71E;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock Text="Reset Zoom (100%)"/>
+                        <TextBlock Text="Reset Zoom (50%)"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItemSeparator/>
                 <NavigationViewItemHeader x:Name="PageHeaderTextBlock" Content="Page 1 / 1"/>
-                <NavigationViewItem Icon="Previous" Content="Previous Page" Tag="prevpage"/>
                 <NavigationViewItem Icon="Next" Content="Next Page" Tag="nextpage"/>
+                <NavigationViewItem Icon="Previous" Content="Previous Page" Tag="prevpage"/>
+                <NavigationViewItem Tag="doublepagemode">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE89A;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:Name="DoublePageModeTextBlock" Text="Enable Double Page"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
                 <NavigationViewItemSeparator/>
                 <NavigationViewItem Tag="penmode">
                     <NavigationViewItem.Icon>
@@ -168,19 +176,58 @@
                                       VerticalAlignment="Center"
                                       Padding="32">
                                     
-                                    <Image x:Name="PdfImage" 
-                                           Stretch="Uniform"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"/>
+                                    <!-- Single page view -->
+                                    <Grid x:Name="SinglePageContainer">
+                                        <Image x:Name="PdfImage" 
+                                               Stretch="Uniform"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                        
+                                        <!-- Canvas for pen drawing overlay -->
+                                        <Canvas x:Name="PdfInkCanvas"
+                                               HorizontalAlignment="Stretch"
+                                               VerticalAlignment="Stretch"
+                                               Background="Transparent"
+                                               PointerPressed="InkCanvas_PointerPressed"
+                                               PointerMoved="InkCanvas_PointerMoved"
+                                               PointerReleased="InkCanvas_PointerReleased"/>
+                                    </Grid>
                                     
-                                    <!-- Canvas for pen drawing overlay -->
-                                    <Canvas x:Name="PdfInkCanvas"
-                                           HorizontalAlignment="Stretch"
-                                           VerticalAlignment="Stretch"
-                                           Background="Transparent"
-                                           PointerPressed="InkCanvas_PointerPressed"
-                                           PointerMoved="InkCanvas_PointerMoved"
-                                           PointerReleased="InkCanvas_PointerReleased"/>
+                                    <!-- Double page view -->
+                                    <StackPanel x:Name="DoublePageContainer" 
+                                                Orientation="Horizontal" 
+                                                Spacing="16"
+                                                Visibility="Collapsed">
+                                        <Grid>
+                                            <Image x:Name="PdfImageLeft" 
+                                                   Stretch="Uniform"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                            
+                                            <Canvas x:Name="PdfInkCanvasLeft"
+                                                   HorizontalAlignment="Stretch"
+                                                   VerticalAlignment="Stretch"
+                                                   Background="Transparent"
+                                                   PointerPressed="InkCanvas_PointerPressed"
+                                                   PointerMoved="InkCanvas_PointerMoved"
+                                                   PointerReleased="InkCanvas_PointerReleased"/>
+                                        </Grid>
+                                        
+                                        <Grid>
+                                            <Image x:Name="PdfImageRight" 
+                                                   Stretch="Uniform"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                            
+                                            <Canvas x:Name="PdfInkCanvasRight"
+                                                   HorizontalAlignment="Stretch"
+                                                   VerticalAlignment="Stretch"
+                                                   Background="Transparent"
+                                                   PointerPressed="InkCanvas_PointerPressed"
+                                                   PointerMoved="InkCanvas_PointerMoved"
+                                                   PointerReleased="InkCanvas_PointerReleased"/>
+                                        </Grid>
+                                    </StackPanel>
                                 </Grid>
                             </ScrollViewer>
 
