@@ -1,7 +1,6 @@
 using Microsoft.UI.Xaml;
 using System;
 using System.Linq;
-using Windows.Storage;
 
 namespace MicaPDF
 {
@@ -12,7 +11,6 @@ namespace MicaPDF
 
         public App()
         {
-            InitializeStartupOptimizations();
             this.InitializeComponent();
         }
 
@@ -32,21 +30,6 @@ namespace MicaPDF
 
             m_window = new MainWindow();
             m_window.Activate();
-        }
-
-        private void InitializeStartupOptimizations()
-        {
-            try
-            {
-                AppContext.SetSwitch("System.Runtime.TieredCompilation", false);
-                var cachePath = ApplicationData.Current.LocalCacheFolder.Path;
-                System.Runtime.ProfileOptimization.SetProfileRoot(cachePath);
-                System.Runtime.ProfileOptimization.StartProfile("startup.profile");
-            }
-            catch
-            {
-                // Best-effort optimization; ignore failures on unsupported systems
-            }
         }
     }
 }
