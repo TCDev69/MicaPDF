@@ -16,8 +16,6 @@
     <AssemblyName>MicaPDF</AssemblyName>
     <ApplicationIcon>MicaPDF.ico</ApplicationIcon>
     <SelfContained>false</SelfContained>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <PublishReadyToRunShowWarnings>true</PublishReadyToRunShowWarnings>
     <TieredCompilation>false</TieredCompilation>
     <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
