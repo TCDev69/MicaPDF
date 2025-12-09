@@ -15,6 +15,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
+OutputDir=Release
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
