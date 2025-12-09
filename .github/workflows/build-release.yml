@@ -30,17 +30,17 @@ jobs:
       
     - name: Build and Package x64 MSIX
       run: |
-        msbuild /p:Configuration=Release /p:Platform=x64 /p:AppxPackageDir="..\..\AppPackages\x64\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly
+        msbuild /p:Configuration=Release /p:Platform=x64 /p:AppxPackageDir="..\..\AppPackages\x64\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:PublishReadyToRun=false
       shell: pwsh
       
     - name: Build and Package x86 MSIX
       run: |
-        msbuild /p:Configuration=Release /p:Platform=x86 /p:AppxPackageDir="..\..\AppPackages\x86\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly
+        msbuild /p:Configuration=Release /p:Platform=x86 /p:AppxPackageDir="..\..\AppPackages\x86\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:PublishReadyToRun=false
       shell: pwsh
       
     - name: Build and Package ARM64 MSIX
       run: |
-        msbuild /p:Configuration=Release /p:Platform=ARM64 /p:AppxPackageDir="..\..\AppPackages\ARM64\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly
+        msbuild /p:Configuration=Release /p:Platform=ARM64 /p:AppxPackageDir="..\..\AppPackages\ARM64\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:PublishReadyToRun=false
       shell: pwsh
       
     - name: Create Release Folder
