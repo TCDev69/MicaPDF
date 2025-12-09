@@ -177,122 +177,85 @@ jobs:
         choco install innosetup -y
       shell: pwsh
       
-    - name: Create x64 Installer Script
+    - name: Generate Installer Scripts
       run: |
-        @"
-        #define MyAppName "MicaPDF"
-        #define MyAppVersion "1.1.0"
-        #define MyAppPublisher "MicaPDF"
-        #define MyAppURL "https://github.com/TCDev69/MicaPDF"
-        #define MyAppExeName "MicaPDF.exe"
-        #define DotNetInstallerURL "https://download.visualstudio.microsoft.com/download/pr/4d6cbbf4-002a-4575-a2e5-e7920c0cd6eb/1e12ca0e0c74e5e9fb15c7d09784d1b5/windowsdesktop-runtime-8.0.11-win-x64.exe"
-
-        [Setup]
-        AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
-        AppName={#MyAppName}
-        AppVersion={#MyAppVersion}
-        AppPublisher={#MyAppPublisher}
-        AppPublisherURL={#MyAppURL}
-        AppSupportURL={#MyAppURL}
-        AppUpdatesURL={#MyAppURL}
-        DefaultDirName={autopf}\{#MyAppName}
-        DefaultGroupName={#MyAppName}
-        AllowNoIcons=yes
-        OutputDir=Release
-        OutputBaseFilename=MicaPDF-Setup-x64
-        Compression=lzma2
-        SolidCompression=yes
-        WizardStyle=modern
-        ArchitecturesAllowed=x64
-        ArchitecturesInstallIn64BitMode=x64
-        PrivilegesRequired=lowest
-
-        [Languages]
-        Name: "english"; MessagesFile: "compiler:Default.isl"
-
-        [Tasks]
-        Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-        Name: "downloadnet8"; Description: "Download and install .NET 8 Desktop Runtime (required if not already installed)"; GroupDescription: "Additional options:"; Flags: checkablealone
-
-        [Files]
-        Source: "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-
-        [Icons]
-        Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-        Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-        Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-
-        [Code]
-        var
-          DownloadPage: TDownloadWizardPage;
-
-        function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
-        begin
-          if Progress = ProgressMax then
-            Log(Format('Successfully downloaded %s to %s', [Url, FileName]));
-          Result := True;
-        end;
-
-        function IsDotNet8Installed: Boolean;
-        var
-          ResultCode: Integer;
-        begin
-          Result := Exec('dotnet', '--list-runtimes', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
-        end;
-
-        procedure InitializeWizard;
-        begin
-          DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), SetupMessage(msgPreparingDesc), @OnDownloadProgress);
-        end;
-
-        function NextButtonClick(CurPageID: Integer): Boolean;
-        var
-          DotNetInstaller: String;
-          ResultCode: Integer;
-        begin
-          Result := True;
-          
-          if CurPageID = wpReady then begin
-            if IsTaskSelected('downloadnet8') and not IsDotNet8Installed then begin
-              DownloadPage.Clear;
-              DotNetInstaller := ExpandConstant('{tmp}\dotnet8-desktop-runtime.exe');
-              DownloadPage.Add('{#DotNetInstallerURL}', 'dotnet8-desktop-runtime.exe', '');
-              DownloadPage.Show;
-              try
-                try
-                  DownloadPage.Download;
-                  Result := True;
-                  
-                  if FileExists(DotNetInstaller) then begin
-                    if MsgBox('Do you want to install .NET 8 Desktop Runtime now?' + #13#10 + 'This is required to run MicaPDF.', mbConfirmation, MB_YESNO) = IDYES then begin
-                      Exec(DotNetInstaller, '/install /quiet /norestart', '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
-                      if ResultCode = 0 then
-                        MsgBox('.NET 8 Desktop Runtime installed successfully!', mbInformation, MB_OK)
-                      else
-                        MsgBox('Failed to install .NET 8. You may need to install it manually.', mbError, MB_OK);
-                    end;
-                  end;
-                except
-                  if DownloadPage.AbortedByUser then begin
-                    Result := False;
-                  end else begin
-                    MsgBox('Failed to download .NET 8 installer. You can download it manually from microsoft.com', mbError, MB_OK);
-                  end;
-                end;
-              finally
-                DownloadPage.Hide;
-              end;
-            end;
-          end;
-        end;
-
-        [Run]
-        Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
-        [Registry]
-        Root: HKCU; Subkey: "Software\Classes\.pdf\OpenWithProgids"; ValueType: string; ValueName: "MicaPDF.Document"; ValueData: ""; Flags: uninsdeletevalue
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document"; ValueType: string; ValueName: ""; ValueData: "PDF Document"; Flags: uninsdeletekey
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-        "@ | Out-File -FilePath "installer-x64.iss" -Encoding UTF8
+        .\generate-installers.ps1
       shell: pwsh
+      
+    - name: Build Installers
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-x64.iss
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-x86.iss
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-ARM64.iss
+      shell: pwsh
+      continue-on-error: true
+      
+    - name: Create Portable ZIP
+      run: |
+        Compress-Archive -Path "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\*" -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
+        Compress-Archive -Path "bin\x86\Release\net8.0-windows10.0.22621.0\win-x86\publish\*" -DestinationPath "Release\MicaPDF-Portable-x86.zip" -Force
+        Compress-Archive -Path "bin\ARM64\Release\net8.0-windows10.0.22621.0\win-arm64\publish\*" -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
+      shell: pwsh
+      
+    - name: Upload Release Assets
+      uses: actions/upload-artifact@v4
+      with:
+        name: MicaPDF-Release
+        path: |
+          Release/*.exe
+          Release/*.zip
+          Release/*.txt
+          Release/*.md
+          
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          Release/MicaPDF-Portable-x64.zip
+          Release/MicaPDF-Portable-x86.zip
+          Release/MicaPDF-Portable-ARM64.zip
+          Release/MicaPDF-Setup-x64.exe
+          Release/MicaPDF-Setup-x86.exe
+          Release/MicaPDF-Setup-ARM64.exe
+          Release/INSTALL.txt
+          Release/README.md
+        body: |
+          ## MicaPDF v1.1.0 Release
+          
+          A modern PDF viewer with translucent Mica background for Windows.
+          
+          ### Downloads
+          
+          **Installer (Recommended)**
+          - `MicaPDF-Setup-x64.exe` - Windows Installer for 64-bit systems
+          - `MicaPDF-Setup-x86.exe` - Windows Installer for 32-bit systems
+          - `MicaPDF-Setup-ARM64.exe` - Windows Installer for ARM64 devices
+          
+          The installer will automatically check for .NET 8 Desktop Runtime and offer to download/install it if needed.
+          
+          **Portable Versions**
+          - `MicaPDF-Portable-x64.zip` - Portable version for 64-bit Windows
+          - `MicaPDF-Portable-x86.zip` - Portable version for 32-bit Windows  
+          - `MicaPDF-Portable-ARM64.zip` - Portable version for ARM64 Windows
+          
+          ### New Features in v1.1.0
+          - 📖 Page offset support for textbooks (e.g., `book_+20.pdf`)
+          - 📄 Double-page alignment mode (`book_+d.pdf`)
+          - ✏️ Pen annotations now work in double-page mode
+          - 🔧 .NET 8 auto-download option in installer
+          
+          ### Features
+          - Modern Mica translucent UI
+          - High-quality PDF rendering at 200% DPI
+          - Pen annotations with eraser
+          - Double-page view mode
+          - Touch and mouse support
+          - Set as default PDF reader
+          
+          ### Requirements
+          - Windows 10 (build 17763) or later
+          - Windows 11 recommended for best Mica effect
+          - .NET 8 Desktop Runtime (installer can download it automatically)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
