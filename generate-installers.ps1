@@ -3,7 +3,7 @@
 $template = Get-Content "installer-template.iss" -Raw
 
 # x64 Installer
-$x64Script = $template -replace '^', '#define Win64' + "`r`n"
+$x64Script = "#define Win64`r`n" + $template
 $x64Script = $x64Script -replace 'OutputBaseFilename=.*', 'OutputBaseFilename=MicaPDF-Setup-x64'
 $x64Script = $x64Script -replace 'ArchitecturesAllowed=.*', 'ArchitecturesAllowed=x64'
 $x64Script = $x64Script -replace 'ArchitecturesInstallIn64BitMode=.*', 'ArchitecturesInstallIn64BitMode=x64'
