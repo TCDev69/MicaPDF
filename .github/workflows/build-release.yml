@@ -87,37 +87,6 @@ jobs:
         
         "@ | Out-File -FilePath "Release\INSTALL.txt" -Encoding UTF8
       shell: pwsh
-           - Double-click the .msix file
-           - Click "Install" in the installer dialog
-           - The app will be installed automatically
-        
-        3. The app will handle .pdf file associations automatically
-        
-        4. Features:
-           - Modern Mica translucent background
-           - High-quality PDF rendering
-           - Advanced zoom (up to 500%)
-           - Page navigation with keyboard shortcuts
-           - Pen annotation support
-           - Touch and mouse pan/drag
-           - Save annotated pages as images
-           - Drag & drop PDF files
-           - Page offset support for textbooks (filename pattern: book_+5.pdf)
-        
-        5. Usage:
-           - Open PDFs by dragging them onto the app window
-           - Use the side menu for all controls
-           - Enable pen mode to draw annotations
-           - Save annotated pages with "Save with Annotations"
-           - For textbooks, name files with offset (e.g., "math_+20.pdf" shows page 1 as page 20)
-        
-        Requirements:
-        - Windows 10 version 1903 (build 19041) or later
-        - Windows 11 recommended for best Mica effect
-        - .NET 8 Desktop Runtime (will be prompted to install if missing)
-        
-        "@ | Out-File -FilePath "Release\INSTALL.txt" -Encoding UTF8
-      shell: pwsh
       
     - name: Create README
       run: |
