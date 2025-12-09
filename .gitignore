@@ -17,6 +17,7 @@ app.packages/
 # Publish artifacts
 publish/
 Release/
+AppPackages/
 *.msi
 *.zip
 *.exe
