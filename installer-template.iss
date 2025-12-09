@@ -16,6 +16,9 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=Release
+OutputBaseFilename=MicaPDF-Setup
+ArchitecturesAllowed=
+ArchitecturesInstallIn64BitMode=
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -65,7 +68,7 @@ begin
   Result := True;
   
   if CurPageID = wpReady then begin
-    if IsTaskSelected('downloadnet8') and not IsDotNet8Installed then begin
+    if WizardIsTaskSelected('downloadnet8') and not IsDotNet8Installed then begin
       DownloadPage.Clear;
       DotNetInstaller := ExpandConstant('{tmp}\dotnet8-desktop-runtime.exe');
       
