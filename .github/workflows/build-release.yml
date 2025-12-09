@@ -146,11 +146,14 @@ jobs:
       
     - name: Build Installers
       run: |
+        Write-Host "Building installers..."
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-x64.iss
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-x86.iss
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-ARM64.iss
+        
+        Write-Host "Checking if installers were created..."
+        Get-ChildItem -Path "Release" -Filter "*.exe" | ForEach-Object { Write-Host "Found: $($_.Name)" }
       shell: pwsh
-      continue-on-error: true
       
     - name: Create Portable ZIP
       run: |
