@@ -28,18 +28,31 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
       
-    - name: Build x64 Release
-      run: dotnet publish -c Release -r win-x64 -p:Platform=x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
+    - name: Build and Package x64 MSIX
+      run: |
+        msbuild /p:Configuration=Release /p:Platform=x64 /p:AppxPackageDir="..\..\AppPackages\x64\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly
+      shell: pwsh
       
-    - name: Build x86 Release
-      run: dotnet publish -c Release -r win-x86 -p:Platform=x86 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
+    - name: Build and Package x86 MSIX
+      run: |
+        msbuild /p:Configuration=Release /p:Platform=x86 /p:AppxPackageDir="..\..\AppPackages\x86\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly
+      shell: pwsh
       
-    - name: Build ARM64 Release
-      run: dotnet publish -c Release -r win-arm64 -p:Platform=ARM64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
+    - name: Build and Package ARM64 MSIX
+      run: |
+        msbuild /p:Configuration=Release /p:Platform=ARM64 /p:AppxPackageDir="..\..\AppPackages\ARM64\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly
+      shell: pwsh
       
     - name: Create Release Folder
       run: |
         New-Item -ItemType Directory -Force -Path "Release"
+      shell: pwsh
+      
+    - name: Copy MSIX Packages to Release
+      run: |
+        Copy-Item -Path "AppPackages\x64\*.msix" -Destination "Release\MicaPDF-x64.msix" -Force
+        Copy-Item -Path "AppPackages\x86\*.msix" -Destination "Release\MicaPDF-x86.msix" -Force
+        Copy-Item -Path "AppPackages\ARM64\*.msix" -Destination "Release\MicaPDF-ARM64.msix" -Force
       shell: pwsh
       
     - name: Create Installation Instructions
@@ -50,16 +63,17 @@ jobs:
 
         Installation Instructions:
         
-        1. Download the appropriate version for your system:
-           - MicaPDF-x64.exe (for 64-bit Windows - most common)
-           - MicaPDF-x86.exe (for 32-bit Windows)
-           - MicaPDF-ARM64.exe (for ARM64 Windows devices)
+        1. Download the appropriate MSIX package for your system:
+           - MicaPDF-x64.msix (for 64-bit Windows - most common)
+           - MicaPDF-x86.msix (for 32-bit Windows)
+           - MicaPDF-ARM64.msix (for ARM64 Windows devices)
         
-        2. Run the downloaded file
+        2. Install the package:
+           - Double-click the .msix file
+           - Click "Install" in the installer dialog
+           - The app will be installed automatically
         
-        3. The app will ask if you want to set it as default PDF reader
-           - Click "Yes, Open Settings" to set as default
-           - Follow the on-screen instructions
+        3. The app will handle .pdf file associations automatically
         
         4. Features:
            - Modern Mica translucent background
@@ -70,16 +84,19 @@ jobs:
            - Touch and mouse pan/drag
            - Save annotated pages as images
            - Drag & drop PDF files
+           - Page offset support for textbooks (filename pattern: book_+5.pdf)
         
         5. Usage:
            - Open PDFs by dragging them onto the app window
            - Use the side menu for all controls
            - Enable pen mode to draw annotations
            - Save annotated pages with "Save with Annotations"
+           - For textbooks, name files with offset (e.g., "math_+20.pdf" shows page 1 as page 20)
         
         Requirements:
-        - Windows 10 version 1809 (build 17763) or later
+        - Windows 10 version 1903 (build 19041) or later
         - Windows 11 recommended for best Mica effect
+        - .NET 8 Desktop Runtime (will be prompted to install if missing)
         
         "@ | Out-File -FilePath "Release\INSTALL.txt" -Encoding UTF8
       shell: pwsh
@@ -97,34 +114,37 @@ jobs:
         - 📄 **High Quality**: High-definition PDF rendering (2x resolution)
         - 🔍 **Advanced Zoom**: Zoom from 50% to 500%
         - ✏️ **Annotations**: Draw and write on PDFs with pen support
+        - ✏️ **Annotations**: Draw and write on PDFs with pen support
         - 💾 **Save Annotated**: Save your annotated pages as PNG images
         - 🖱️ **Touch & Mouse**: Full touch and mouse support with pan/drag
         - ⌨️ **Keyboard Shortcuts**: Navigate pages with Enter key
         - 📂 **Drag & Drop**: Drop PDF files directly on the app
         - 🎯 **File Association**: Set as default PDF reader
+        - 📖 **Page Offset**: Support for textbooks with custom page numbering
 
         ## System Requirements
 
-        - Windows 10 (build 17763) or later
+        - Windows 10 (build 19041) or later
         - Windows 11 recommended for best visual experience
+        - .NET 8 Desktop Runtime
 
         ## Download
 
-        Download the latest release from the [Releases](../../releases) page.
+        Download the latest MSIX package from the [Releases](../../releases) page.
 
         ## Installation
 
-        1. Download the appropriate version for your system
-        2. Run the executable
-        3. The app will prompt you to set it as default PDF reader
+        1. Download the appropriate MSIX file for your system
+        2. Double-click to install
+        3. The app will automatically handle PDF file associations
         4. Enjoy!
 
         ## Building from Source
 
         ``````bash
-        git clone https://github.com/yourusername/MicaPDF.git
+        git clone https://github.com/TCDev69/MicaPDF.git
         cd MicaPDF
-        dotnet build -p:Platform=x64
+        msbuild /p:Configuration=Release /p:Platform=x64
         ``````
 
         ## License
@@ -134,194 +154,12 @@ jobs:
         "@ | Out-File -FilePath "Release\README.md" -Encoding UTF8
       shell: pwsh
       
-    - name: Install Inno Setup
-      run: |
-        choco install innosetup -y
-      shell: pwsh
-      
-    - name: Create x64 Installer Script
-      run: |
-        @"
-        #define MyAppName "MicaPDF"
-        #define MyAppVersion "1.0.0"
-        #define MyAppPublisher "MicaPDF"
-        #define MyAppURL "https://github.com/yourusername/MicaPDF"
-        #define MyAppExeName "MicaPDF.exe"
-
-        [Setup]
-        AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
-        AppName={#MyAppName}
-        AppVersion={#MyAppVersion}
-        AppPublisher={#MyAppPublisher}
-        AppPublisherURL={#MyAppURL}
-        AppSupportURL={#MyAppURL}
-        AppUpdatesURL={#MyAppURL}
-        DefaultDirName={autopf}\{#MyAppName}
-        DefaultGroupName={#MyAppName}
-        AllowNoIcons=yes
-        OutputDir=Release
-        OutputBaseFilename=MicaPDF-Setup-x64
-        Compression=lzma2
-        SolidCompression=yes
-        WizardStyle=modern
-        ArchitecturesAllowed=x64
-        ArchitecturesInstallIn64BitMode=x64
-        PrivilegesRequired=lowest
-
-        [Languages]
-        Name: "english"; MessagesFile: "compiler:Default.isl"
-
-        [Tasks]
-        Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-
-        [Files]
-        Source: "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
-
-        [Icons]
-        Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-        Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-        Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-
-        [Run]
-        Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
-        [Registry]
-        Root: HKCU; Subkey: "Software\Classes\.pdf"; ValueType: string; ValueName: ""; ValueData: "MicaPDF.Document"; Flags: uninsdeletevalue
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document"; ValueType: string; ValueName: ""; ValueData: "PDF Document"; Flags: uninsdeletekey
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-        "@ | Out-File -FilePath "installer-x64.iss" -Encoding UTF8
-      shell: pwsh
-      
-    - name: Create x86 Installer Script
-      run: |
-        @"
-        #define MyAppName "MicaPDF"
-        #define MyAppVersion "1.0.0"
-        #define MyAppPublisher "MicaPDF"
-        #define MyAppURL "https://github.com/yourusername/MicaPDF"
-        #define MyAppExeName "MicaPDF.exe"
-
-        [Setup]
-        AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
-        AppName={#MyAppName}
-        AppVersion={#MyAppVersion}
-        AppPublisher={#MyAppPublisher}
-        AppPublisherURL={#MyAppURL}
-        AppSupportURL={#MyAppURL}
-        AppUpdatesURL={#MyAppURL}
-        DefaultDirName={autopf32}\{#MyAppName}
-        DefaultGroupName={#MyAppName}
-        AllowNoIcons=yes
-        OutputDir=Release
-        OutputBaseFilename=MicaPDF-Setup-x86
-        Compression=lzma2
-        SolidCompression=yes
-        WizardStyle=modern
-        ArchitecturesAllowed=x86
-        PrivilegesRequired=lowest
-
-        [Languages]
-        Name: "english"; MessagesFile: "compiler:Default.isl"
-
-        [Tasks]
-        Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-
-        [Files]
-        Source: "bin\x86\Release\net8.0-windows10.0.22621.0\win-x86\publish\MicaPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
-
-        [Icons]
-        Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-        Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-        Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-
-        [Run]
-        Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
-        [Registry]
-        Root: HKCU; Subkey: "Software\Classes\.pdf"; ValueType: string; ValueName: ""; ValueData: "MicaPDF.Document"; Flags: uninsdeletevalue
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document"; ValueType: string; ValueName: ""; ValueData: "PDF Document"; Flags: uninsdeletekey
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-        "@ | Out-File -FilePath "installer-x86.iss" -Encoding UTF8
-      shell: pwsh
-      
-    - name: Create ARM64 Installer Script
-      run: |
-        @"
-        #define MyAppName "MicaPDF"
-        #define MyAppVersion "1.0.0"
-        #define MyAppPublisher "MicaPDF"
-        #define MyAppURL "https://github.com/yourusername/MicaPDF"
-        #define MyAppExeName "MicaPDF.exe"
-
-        [Setup]
-        AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
-        AppName={#MyAppName}
-        AppVersion={#MyAppVersion}
-        AppPublisher={#MyAppPublisher}
-        AppPublisherURL={#MyAppURL}
-        AppSupportURL={#MyAppURL}
-        AppUpdatesURL={#MyAppURL}
-        DefaultDirName={autopf}\{#MyAppName}
-        DefaultGroupName={#MyAppName}
-        AllowNoIcons=yes
-        OutputDir=Release
-        OutputBaseFilename=MicaPDF-Setup-ARM64
-        Compression=lzma2
-        SolidCompression=yes
-        WizardStyle=modern
-        ArchitecturesAllowed=arm64
-        ArchitecturesInstallIn64BitMode=arm64
-        PrivilegesRequired=lowest
-
-        [Languages]
-        Name: "english"; MessagesFile: "compiler:Default.isl"
-
-        [Tasks]
-        Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-
-        [Files]
-        Source: "bin\ARM64\Release\net8.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
-
-        [Icons]
-        Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-        Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-        Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-
-        [Run]
-        Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
-        [Registry]
-        Root: HKCU; Subkey: "Software\Classes\.pdf"; ValueType: string; ValueName: ""; ValueData: "MicaPDF.Document"; Flags: uninsdeletevalue
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document"; ValueType: string; ValueName: ""; ValueData: "PDF Document"; Flags: uninsdeletekey
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-        "@ | Out-File -FilePath "installer-arm64.iss" -Encoding UTF8
-      shell: pwsh
-      
-    - name: Build Installers
-      run: |
-        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-x64.iss
-        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-x86.iss
-        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-arm64.iss
-      shell: pwsh
-      continue-on-error: true
-      
-    - name: Create Portable ZIP
-      run: |
-        Compress-Archive -Path "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
-        Compress-Archive -Path "bin\x86\Release\net8.0-windows10.0.22621.0\win-x86\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-x86.zip" -Force
-        Compress-Archive -Path "bin\ARM64\Release\net8.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
-      shell: pwsh
-      
     - name: Upload Release Assets
       uses: actions/upload-artifact@v4
       with:
         name: MicaPDF-Release
         path: |
-          Release/*.exe
-          Release/*.zip
+          Release/*.msix
           Release/*.txt
           Release/*.md
           
@@ -330,12 +168,9 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          Release/MicaPDF-Portable-x64.zip
-          Release/MicaPDF-Portable-x86.zip
-          Release/MicaPDF-Portable-ARM64.zip
-          Release/MicaPDF-Setup-x64.exe
-          Release/MicaPDF-Setup-x86.exe
-          Release/MicaPDF-Setup-ARM64.exe
+          Release/MicaPDF-x64.msix
+          Release/MicaPDF-x86.msix
+          Release/MicaPDF-ARM64.msix
           Release/INSTALL.txt
           Release/README.md
         body: |
@@ -345,23 +180,24 @@ jobs:
           
           ### Downloads
           
-          **Installer (Recommended)**
-          - `MicaPDF-Setup-x64.exe` - Windows Installer for 64-bit systems
-          - `MicaPDF-Setup-x86.exe` - Windows Installer for 32-bit systems
-          - `MicaPDF-Setup-ARM64.exe` - Windows Installer for ARM64 devices
+          **MSIX Packages**
+          - `MicaPDF-x64.msix` - MSIX Package for 64-bit systems
+          - `MicaPDF-x86.msix` - MSIX Package for 32-bit systems
+          - `MicaPDF-ARM64.msix` - MSIX Package for ARM64 devices
           
-          All installers include automatic file association setup.
+          Double-click the MSIX file to install. The app will automatically handle file associations.
           
-          **Portable Versions**
-          - `MicaPDF-Portable-x64.zip` - Portable version for 64-bit Windows
-          - `MicaPDF-Portable-x86.zip` - Portable version for 32-bit Windows  
-          - `MicaPDF-Portable-ARM64.zip` - Portable version for ARM64 Windows
+          ### Requirements
+          - Windows 10 build 19041 or later
+          - .NET 8 Desktop Runtime (will prompt to install if missing)
           
           ### Features
           - Modern Mica translucent UI
           - High-quality PDF rendering
-          - Pen annotations
+          - Pen annotations with eraser
+          - Double-page view mode
           - Touch and mouse support
+          - Page offset for textbooks (_+X.pdf naming pattern)
           - Set as default PDF reader
           
           ### Requirements

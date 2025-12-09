@@ -39,6 +39,8 @@ namespace MicaPDF
         private bool _isDoublePageMode = false;
         private Polyline? _currentStroke;
         private bool _isDrawing = false;
+        private int _pageOffset = 0; // Offset for page numbering based on filename
+        private bool _useDoublePageAlignment = false; // If true, align double pages starting from current (not previous)
 
         public MainWindow()
         {
@@ -410,6 +412,12 @@ namespace MicaPDF
                 _currentZoom = 0.5;
                 ZoomLevelTextBlock.Text = "50%";
                 ZoomHeaderTextBlock.Content = "Zoom: 50%";
+                
+                // Parse page offset from filename (e.g., "book_+5.pdf" means start from page 5)
+                // or _+d for double page alignment mode
+                _useDoublePageAlignment = false; // Reset before parsing
+                _pageOffset = ParsePageOffsetFromFilename(file.Name);
+                
                 FileNameTextBlock.Text = file.Name;
                 TitleBarFileName.Text = file.Name;
                 WelcomePanel.Visibility = Visibility.Collapsed;
@@ -434,11 +442,34 @@ namespace MicaPDF
             {
                 if (_isDoublePageMode)
                 {
-                    // Render two pages side by side
-                    // Left page (current page)
-                    if (_currentPageIndex < _pdfDocument.PageCount)
+                    // Determine which pages to show based on alignment mode
+                    uint leftPageIndex, rightPageIndex;
+                    
+                    if (_useDoublePageAlignment)
                     {
-                        using (var page = _pdfDocument.GetPage(_currentPageIndex))
+                        // Show current page on left, next page on right
+                        leftPageIndex = _currentPageIndex;
+                        rightPageIndex = _currentPageIndex + 1;
+                    }
+                    else
+                    {
+                        // Traditional mode: show previous page on left, current on right
+                        if (_currentPageIndex > 0)
+                        {
+                            leftPageIndex = _currentPageIndex - 1;
+                            rightPageIndex = _currentPageIndex;
+                        }
+                        else
+                        {
+                            leftPageIndex = _currentPageIndex;
+                            rightPageIndex = _currentPageIndex + 1;
+                        }
+                    }
+                    
+                    // Render left page
+                    if (leftPageIndex < _pdfDocument.PageCount)
+                    {
+                        using (var page = _pdfDocument.GetPage(leftPageIndex))
                         {
                             var renderOptions = new PdfPageRenderOptions
                             {
@@ -456,11 +487,15 @@ namespace MicaPDF
                             }
                         }
                     }
-                    
-                    // Right page (next page)
-                    if (_currentPageIndex + 1 < _pdfDocument.PageCount)
+                    else
                     {
-                        using (var page = _pdfDocument.GetPage(_currentPageIndex + 1))
+                        PdfImageLeft.Source = null;
+                    }
+                    
+                    // Render right page
+                    if (rightPageIndex < _pdfDocument.PageCount)
+                    {
+                        using (var page = _pdfDocument.GetPage(rightPageIndex))
                         {
                             var renderOptions = new PdfPageRenderOptions
                             {
@@ -478,15 +513,18 @@ namespace MicaPDF
                             }
                         }
                         
-                        PageInfoTextBlock.Text = $"{_currentPageIndex + 1}-{_currentPageIndex + 2} / {_pdfDocument.PageCount}";
-                        PageHeaderTextBlock.Content = $"Page {_currentPageIndex + 1}-{_currentPageIndex + 2} / {_pdfDocument.PageCount}";
+                        int displayPage1 = (int)leftPageIndex + 1 + _pageOffset;
+                        int displayPage2 = (int)rightPageIndex + 1 + _pageOffset;
+                        PageInfoTextBlock.Text = $"{displayPage1}-{displayPage2} / {_pdfDocument.PageCount}";
+                        PageHeaderTextBlock.Content = $"Page {displayPage1}-{displayPage2} / {_pdfDocument.PageCount}";
                     }
                     else
                     {
                         // Only one page left
                         PdfImageRight.Source = null;
-                        PageInfoTextBlock.Text = $"{_currentPageIndex + 1} / {_pdfDocument.PageCount}";
-                        PageHeaderTextBlock.Content = $"Page {_currentPageIndex + 1} / {_pdfDocument.PageCount}";
+                        int displayPage = (int)leftPageIndex + 1 + _pageOffset;
+                        PageInfoTextBlock.Text = $"{displayPage} / {_pdfDocument.PageCount}";
+                        PageHeaderTextBlock.Content = $"Page {displayPage} / {_pdfDocument.PageCount}";
                     }
                 }
                 else
@@ -510,8 +548,9 @@ namespace MicaPDF
                         }
                     }
 
-                    PageInfoTextBlock.Text = $"{_currentPageIndex + 1} / {_pdfDocument.PageCount}";
-                    PageHeaderTextBlock.Content = $"Page {_currentPageIndex + 1} / {_pdfDocument.PageCount}";
+                    int displayPage = (int)_currentPageIndex + 1 + _pageOffset;
+                    PageInfoTextBlock.Text = $"{displayPage} / {_pdfDocument.PageCount}";
+                    PageHeaderTextBlock.Content = $"Page {displayPage} / {_pdfDocument.PageCount}";
                 }
                 
                 UpdateNavigationButtons();
@@ -673,9 +712,9 @@ namespace MicaPDF
                 return;
             }
 
-            // Set maximum and current value
-            PageNumberBox.Maximum = _pdfDocument.PageCount;
-            PageNumberBox.Value = _currentPageIndex + 1;
+            // Set maximum and current value - adjust for page offset
+            PageNumberBox.Maximum = _pdfDocument.PageCount + _pageOffset;
+            PageNumberBox.Value = _currentPageIndex + 1 + _pageOffset;
             
             // Show dialog
             GoToPageDialog.XamlRoot = this.Content.XamlRoot;
@@ -717,12 +756,52 @@ namespace MicaPDF
                 PageNumberBox.Value = parsedValue; // keep UI in sync
             }
 
-            if (requestedValue >= 1 && requestedValue <= _pdfDocument.PageCount)
+            // Adjust for page offset - user enters display page number
+            double actualPageNumber = requestedValue + _pageOffset;
+
+            if (actualPageNumber >= 1 && actualPageNumber <= _pdfDocument.PageCount)
             {
-                _currentPageIndex = (uint)(requestedValue - 1);
+                _currentPageIndex = (uint)(actualPageNumber - 1);
                 await RenderCurrentPage();
                 UpdateNavigationButtons();
             }
+        }
+
+        private int ParsePageOffsetFromFilename(string filename)
+        {
+            // Parse filename pattern like "book_+5.pdf" or "document_+123.pdf"
+            try
+            {
+                // Remove extension
+                string nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(filename);
+                
+                // Look for pattern _+number or _-number or _+d
+                int underscoreIndex = nameWithoutExt.LastIndexOf('_');
+                if (underscoreIndex >= 0 && underscoreIndex < nameWithoutExt.Length - 1)
+                {
+                    string offsetPart = nameWithoutExt.Substring(underscoreIndex + 1);
+                    
+                    // Check for _+d pattern (double page alignment)
+                    if (offsetPart.Equals("+d", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _useDoublePageAlignment = true;
+                        return 0;
+                    }
+                    
+                    // Check if it starts with + or -
+                    if ((offsetPart.StartsWith("+") || offsetPart.StartsWith("-")) && 
+                        int.TryParse(offsetPart, out int offset))
+                    {
+                        return offset;
+                    }
+                }
+            }
+            catch
+            {
+                // If parsing fails, return 0 (no offset)
+            }
+            
+            return 0;
         }
 
         private void TogglePenMode()
@@ -827,6 +906,9 @@ namespace MicaPDF
 
         private void InkCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
+            var canvas = sender as Canvas;
+            if (canvas == null) return;
+            
             if (_isPenModeEnabled)
             {
                 _isDrawing = true;
@@ -839,58 +921,64 @@ namespace MicaPDF
                     StrokeEndLineCap = PenLineCap.Round
                 };
 
-                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
+                var point = e.GetCurrentPoint(canvas).Position;
                 _currentStroke.Points.Add(point);
-                PdfInkCanvas.Children.Add(_currentStroke);
+                canvas.Children.Add(_currentStroke);
                 
-                PdfInkCanvas.CapturePointer(e.Pointer);
+                canvas.CapturePointer(e.Pointer);
             }
             else if (_isEraserModeEnabled)
             {
                 // Start erasing when pointer is pressed
                 _isEraserActive = true;
-                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
-                EraseStrokesAtPoint(point);
-                PdfInkCanvas.CapturePointer(e.Pointer);
+                var point = e.GetCurrentPoint(canvas).Position;
+                EraseStrokesAtPoint(point, canvas);
+                canvas.CapturePointer(e.Pointer);
             }
         }
 
         private void InkCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
         {
+            var canvas = sender as Canvas;
+            if (canvas == null) return;
+            
             if (_isPenModeEnabled && _isDrawing && _currentStroke != null)
             {
-                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
+                var point = e.GetCurrentPoint(canvas).Position;
                 _currentStroke.Points.Add(point);
             }
             else if (_isEraserModeEnabled && _isEraserActive)
             {
                 // Continue erasing only while pointer is pressed
-                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
-                EraseStrokesAtPoint(point);
+                var point = e.GetCurrentPoint(canvas).Position;
+                EraseStrokesAtPoint(point, canvas);
             }
         }
 
         private void InkCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
+            var canvas = sender as Canvas;
+            if (canvas == null) return;
+            
             if (_isPenModeEnabled)
             {
                 _isDrawing = false;
                 _currentStroke = null;
-                PdfInkCanvas.ReleasePointerCapture(e.Pointer);
+                canvas.ReleasePointerCapture(e.Pointer);
             }
             else if (_isEraserModeEnabled)
             {
                 _isEraserActive = false;
-                PdfInkCanvas.ReleasePointerCapture(e.Pointer);
+                canvas.ReleasePointerCapture(e.Pointer);
             }
         }
 
-        private void EraseStrokesAtPoint(Windows.Foundation.Point point)
+        private void EraseStrokesAtPoint(Windows.Foundation.Point point, Canvas canvas)
         {
             const double eraserRadius = 20; // Size of eraser
             var strokesToRemove = new List<UIElement>();
 
-            foreach (var child in PdfInkCanvas.Children)
+            foreach (var child in canvas.Children)
             {
                 if (child is Polyline polyline)
                 {
@@ -914,7 +1002,7 @@ namespace MicaPDF
             // Remove all strokes that were hit
             foreach (var stroke in strokesToRemove)
             {
-                PdfInkCanvas.Children.Remove(stroke);
+                canvas.Children.Remove(stroke);
             }
         }
 
