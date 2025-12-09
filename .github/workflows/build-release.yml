@@ -50,40 +50,36 @@ jobs:
 
         Installation Instructions:
         
-        1. Download the appropriate installer for your system:
-           - MicaPDF-Setup-x64.exe (for 64-bit Windows - most common)
-           - MicaPDF-Setup-x86.exe (for 32-bit Windows)
-           - MicaPDF-Setup-ARM64.exe (for ARM64 Windows devices)
+        1. Download the appropriate version for your system:
+           - MicaPDF-x64.exe (for 64-bit Windows - most common)
+           - MicaPDF-x86.exe (for 32-bit Windows)
+           - MicaPDF-ARM64.exe (for ARM64 Windows devices)
         
-        2. Run the installer
-           - The installer will check if .NET 8 Desktop Runtime is installed
-           - If not installed, you'll have the option to download and install it automatically
+        2. Run the downloaded file
         
-        3. Features:
+        3. The app will ask if you want to set it as default PDF reader
+           - Click "Yes, Open Settings" to set as default
+           - Follow the on-screen instructions
+        
+        4. Features:
            - Modern Mica translucent background
            - High-quality PDF rendering
            - Advanced zoom (up to 500%)
            - Page navigation with keyboard shortcuts
-           - Pen annotation support with eraser
+           - Pen annotation support
            - Touch and mouse pan/drag
            - Save annotated pages as images
            - Drag & drop PDF files
-           - Double-page view mode
-           - Page offset support for textbooks (filename pattern: book_+5.pdf)
-           - Double-page alignment mode (filename pattern: book_+d.pdf)
         
-        4. Usage:
-           - Open PDFs by dragging them onto the app window or via command line
+        5. Usage:
+           - Open PDFs by dragging them onto the app window
            - Use the side menu for all controls
            - Enable pen mode to draw annotations
            - Save annotated pages with "Save with Annotations"
-           - For textbooks, name files with offset (e.g., "math_+20.pdf")
-           - Use _+d suffix for double-page alignment mode
         
         Requirements:
         - Windows 10 version 1809 (build 17763) or later
         - Windows 11 recommended for best Mica effect
-        - .NET 8 Desktop Runtime (installer can download it for you)
         
         "@ | Out-File -FilePath "Release\INSTALL.txt" -Encoding UTF8
       shell: pwsh
@@ -101,29 +97,26 @@ jobs:
         - 📄 **High Quality**: High-definition PDF rendering (2x resolution)
         - 🔍 **Advanced Zoom**: Zoom from 50% to 500%
         - ✏️ **Annotations**: Draw and write on PDFs with pen support
-        - ✏️ **Annotations**: Draw and write on PDFs with pen support
         - 💾 **Save Annotated**: Save your annotated pages as PNG images
         - 🖱️ **Touch & Mouse**: Full touch and mouse support with pan/drag
         - ⌨️ **Keyboard Shortcuts**: Navigate pages with Enter key
         - 📂 **Drag & Drop**: Drop PDF files directly on the app
         - 🎯 **File Association**: Set as default PDF reader
-        - 📖 **Page Offset**: Support for textbooks with custom page numbering
 
         ## System Requirements
 
         - Windows 10 (build 17763) or later
         - Windows 11 recommended for best visual experience
-        - .NET 8 Desktop Runtime
 
         ## Download
 
-        Download the latest installer from the [Releases](../../releases) page.
+        Download the latest release from the [Releases](../../releases) page.
 
         ## Installation
 
-        1. Download the appropriate installer for your system
-        2. Run the installer
-        3. The installer will check if .NET 8 is installed and offer to download it
+        1. Download the appropriate version for your system
+        2. Run the executable
+        3. The app will prompt you to set it as default PDF reader
         4. Enjoy!
 
         ## Building from Source
@@ -131,7 +124,7 @@ jobs:
         ``````bash
         git clone https://github.com/TCDev69/MicaPDF.git
         cd MicaPDF
-        dotnet build -c Release -p:Platform=x64
+        dotnet build -p:Platform=x64
         ``````
 
         ## License
@@ -161,9 +154,13 @@ jobs:
       
     - name: Create Portable ZIP
       run: |
-        Compress-Archive -Path "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\*" -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
-        Compress-Archive -Path "bin\x86\Release\net8.0-windows10.0.22621.0\win-x86\publish\*" -DestinationPath "Release\MicaPDF-Portable-x86.zip" -Force
-        Compress-Archive -Path "bin\ARM64\Release\net8.0-windows10.0.22621.0\win-arm64\publish\*" -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
+        $x64Path = "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\*"
+        $x86Path = "bin\x86\Release\net8.0-windows10.0.22621.0\win-x86\publish\*"
+        $arm64Path = "bin\ARM64\Release\net8.0-windows10.0.22621.0\win-arm64\publish\*"
+        
+        Compress-Archive -Path $x64Path, "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
+        Compress-Archive -Path $x86Path, "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-x86.zip" -Force
+        Compress-Archive -Path $arm64Path, "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
       shell: pwsh
       
     - name: Upload Release Assets
@@ -190,7 +187,7 @@ jobs:
           Release/INSTALL.txt
           Release/README.md
         body: |
-          ## MicaPDF v1.1.0 Release
+          ## MicaPDF Release
           
           A modern PDF viewer with translucent Mica background for Windows.
           
@@ -201,30 +198,22 @@ jobs:
           - `MicaPDF-Setup-x86.exe` - Windows Installer for 32-bit systems
           - `MicaPDF-Setup-ARM64.exe` - Windows Installer for ARM64 devices
           
-          The installer will automatically check for .NET 8 Desktop Runtime and offer to download/install it if needed.
+          All installers include automatic file association setup.
           
           **Portable Versions**
           - `MicaPDF-Portable-x64.zip` - Portable version for 64-bit Windows
           - `MicaPDF-Portable-x86.zip` - Portable version for 32-bit Windows  
           - `MicaPDF-Portable-ARM64.zip` - Portable version for ARM64 Windows
           
-          ### New Features in v1.1.0
-          - 📖 Page offset support for textbooks (e.g., `book_+20.pdf`)
-          - 📄 Double-page alignment mode (`book_+d.pdf`)
-          - ✏️ Pen annotations now work in double-page mode
-          - 🔧 .NET 8 auto-download option in installer
-          
           ### Features
           - Modern Mica translucent UI
-          - High-quality PDF rendering at 200% DPI
-          - Pen annotations with eraser
-          - Double-page view mode
+          - High-quality PDF rendering
+          - Pen annotations
           - Touch and mouse support
           - Set as default PDF reader
           
           ### Requirements
           - Windows 10 (build 17763) or later
-          - Windows 11 recommended for best Mica effect
-          - .NET 8 Desktop Runtime (installer can download it automatically)
+          - Windows 11 recommended
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
