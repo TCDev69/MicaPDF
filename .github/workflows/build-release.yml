@@ -30,17 +30,17 @@ jobs:
       
     - name: Build and Package x64 MSIX
       run: |
-        msbuild /p:Configuration=Release /p:Platform=x64 /p:AppxPackageDir="AppPackages\x64\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:PublishReadyToRun=false
+        msbuild /t:Publish /p:Configuration=Release /p:Platform=x64 /p:AppxPackageDir="$PWD\AppPackages\x64\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:GenerateAppxPackageOnBuild=true
       shell: pwsh
       
     - name: Build and Package x86 MSIX
       run: |
-        msbuild /p:Configuration=Release /p:Platform=x86 /p:AppxPackageDir="AppPackages\x86\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:PublishReadyToRun=false
+        msbuild /t:Publish /p:Configuration=Release /p:Platform=x86 /p:AppxPackageDir="$PWD\AppPackages\x86\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:GenerateAppxPackageOnBuild=true
       shell: pwsh
       
     - name: Build and Package ARM64 MSIX
       run: |
-        msbuild /p:Configuration=Release /p:Platform=ARM64 /p:AppxPackageDir="AppPackages\ARM64\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:PublishReadyToRun=false
+        msbuild /t:Publish /p:Configuration=Release /p:Platform=ARM64 /p:AppxPackageDir="$PWD\AppPackages\ARM64\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:GenerateAppxPackageOnBuild=true
       shell: pwsh
       
     - name: Create Release Folder
@@ -48,25 +48,40 @@ jobs:
         New-Item -ItemType Directory -Force -Path "Release"
       shell: pwsh
       
-    - name: List generated files for debugging
+    - name: List all generated files for debugging
       run: |
-        Write-Host "Checking AppPackages folder structure:"
+        Write-Host "=== Checking for MSIX files in entire workspace ==="
+        Get-ChildItem -Path . -Filter "*.msix" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+          Write-Host "Found: $($_.FullName)"
+        }
+        Write-Host "`n=== Checking AppPackages structure ==="
         if (Test-Path "AppPackages") {
-          Get-ChildItem -Path "AppPackages" -Recurse | Select-Object FullName
+          Get-ChildItem -Path "AppPackages" -Recurse | Select-Object FullName, Length
         } else {
           Write-Host "AppPackages folder does not exist"
+        }
+        Write-Host "`n=== Checking bin folder structure ==="
+        if (Test-Path "bin") {
+          Get-ChildItem -Path "bin" -Recurse -Directory | Select-Object FullName
         }
       shell: pwsh
       
     - name: Copy MSIX Packages to Release
       run: |
-        $x64Msix = Get-ChildItem -Path "AppPackages\x64" -Filter "*.msix" -Recurse | Select-Object -First 1
-        $x86Msix = Get-ChildItem -Path "AppPackages\x86" -Filter "*.msix" -Recurse | Select-Object -First 1
-        $arm64Msix = Get-ChildItem -Path "AppPackages\ARM64" -Filter "*.msix" -Recurse | Select-Object -First 1
+        $msixFiles = Get-ChildItem -Path . -Filter "*.msix" -Recurse -ErrorAction SilentlyContinue
         
-        if ($x64Msix) { Copy-Item -Path $x64Msix.FullName -Destination "Release\MicaPDF-x64.msix" -Force }
-        if ($x86Msix) { Copy-Item -Path $x86Msix.FullName -Destination "Release\MicaPDF-x86.msix" -Force }
-        if ($arm64Msix) { Copy-Item -Path $arm64Msix.FullName -Destination "Release\MicaPDF-ARM64.msix" -Force }
+        foreach ($msix in $msixFiles) {
+          $platform = if ($msix.FullName -match "\\x64\\") { "x64" }
+                      elseif ($msix.FullName -match "\\x86\\") { "x86" }
+                      elseif ($msix.FullName -match "\\ARM64\\") { "ARM64" }
+                      else { $null }
+          
+          if ($platform) {
+            $destPath = "Release\MicaPDF-$platform.msix"
+            Write-Host "Copying $($msix.FullName) to $destPath"
+            Copy-Item -Path $msix.FullName -Destination $destPath -Force
+          }
+        }
       shell: pwsh
       
     - name: Create Installation Instructions
