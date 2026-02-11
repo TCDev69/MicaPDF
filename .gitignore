@@ -1,1 +1,26 @@
+# Build outputs
 bin/
+obj/
+app.packages/
+*.user
+*.lock.json
+
+# VS/VS Code
+.vs/
+.vscode/
+*.suo
+*.userprefs
+
+# Logs
+*.log
+
+# Publish artifacts
+publish/
+Release/
+AppPackages/
+*.msi
+*.zip
+*.exe
+
+# Other
+*_profiled
