@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
+using Windows.System;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.Storage.Pickers;
@@ -27,14 +28,20 @@ namespace MicaPDF
 {
     public sealed partial class MainWindow : Window
     {
+        private enum ToolMode
+        {
+            Select,
+            Pen,
+            Eraser
+        }
+
         private PdfDocument? _pdfDocument;
         private uint _currentPageIndex = 0;
         private double _currentZoom = 0.5;
         private MicaController? _micaController;
         private SystemBackdropConfiguration? _configurationSource;
         private StorageFile? _currentFile;
-        private bool _isPenModeEnabled = false;
-        private bool _isEraserModeEnabled = false;
+        private ToolMode _currentTool = ToolMode.Select;
         private bool _isEraserActive = false;
         private bool _isDoublePageMode = false;
         private Polyline? _currentStroke;
@@ -56,6 +63,12 @@ namespace MicaPDF
             // Navigation handling
             NavView.ItemInvoked += NavView_ItemInvoked;
             
+            // Handle arrow keys for navigation
+            if (this.Content is UIElement rootContent)
+            {
+                rootContent.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(Window_KeyDown), true);
+            }
+
             // Center the window
             var hWnd = WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
@@ -236,6 +249,29 @@ namespace MicaPDF
             localSettings.Values["NavPaneIsOpen"] = isOpen;
         }
 
+        private async void Window_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            // Don't navigate if the user is typing in a text input
+            if (e.OriginalSource is TextBox || 
+                e.OriginalSource is NumberBox || 
+                e.OriginalSource is PasswordBox || 
+                e.OriginalSource is RichEditBox)
+            {
+                return;
+            }
+
+            if (e.Key == VirtualKey.Left)
+            {
+                await PreviousPage();
+                e.Handled = true;
+            }
+            else if (e.Key == VirtualKey.Right)
+            {
+                await NextPage();
+                e.Handled = true;
+            }
+        }
+
         private async void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
         {
             var tag = args.InvokedItemContainer?.Tag?.ToString();
@@ -269,11 +305,14 @@ namespace MicaPDF
                 case "gotopage":
                     await ShowGoToPageDialog();
                     break;
+                case "selectmode":
+                    SetToolMode(ToolMode.Select);
+                    break;
                 case "penmode":
-                    TogglePenMode();
+                    SetToolMode(ToolMode.Pen);
                     break;
                 case "eraser":
-                    ToggleEraserMode();
+                    SetToolMode(ToolMode.Eraser);
                     break;
                 case "clearink":
                     ClearInkAnnotations();
@@ -725,65 +764,26 @@ namespace MicaPDF
             }
         }
 
-        private void TogglePenMode()
+        private void SetToolMode(ToolMode mode)
         {
-            _isPenModeEnabled = !_isPenModeEnabled;
+            _currentTool = mode;
             
-            // Disable eraser if enabling pen
-            if (_isPenModeEnabled && _isEraserModeEnabled)
+            switch (mode)
             {
-                _isEraserModeEnabled = false;
-                EraserModeTextBlock.Text = "Enable Eraser";
-            }
-            
-            if (_isPenModeEnabled)
-            {
-                // Disable ScrollViewer manipulation when in pen mode
-                PdfScrollViewer.HorizontalScrollMode = ScrollMode.Disabled;
-                PdfScrollViewer.VerticalScrollMode = ScrollMode.Disabled;
-                PdfScrollViewer.ZoomMode = ZoomMode.Disabled;
-                
-                PenModeTextBlock.Text = "Disable Pen";
-            }
-            else
-            {
-                // Re-enable ScrollViewer manipulation
-                PdfScrollViewer.HorizontalScrollMode = ScrollMode.Enabled;
-                PdfScrollViewer.VerticalScrollMode = ScrollMode.Enabled;
-                PdfScrollViewer.ZoomMode = ZoomMode.Enabled;
-                
-                PenModeTextBlock.Text = "Enable Pen";
-            }
-        }
-
-        private void ToggleEraserMode()
-        {
-            _isEraserModeEnabled = !_isEraserModeEnabled;
-            
-            // Disable pen if enabling eraser
-            if (_isEraserModeEnabled && _isPenModeEnabled)
-            {
-                _isPenModeEnabled = false;
-                PenModeTextBlock.Text = "Enable Pen";
-            }
-            
-            if (_isEraserModeEnabled)
-            {
-                // Disable ScrollViewer manipulation when in eraser mode
-                PdfScrollViewer.HorizontalScrollMode = ScrollMode.Disabled;
-                PdfScrollViewer.VerticalScrollMode = ScrollMode.Disabled;
-                PdfScrollViewer.ZoomMode = ZoomMode.Disabled;
-                
-                EraserModeTextBlock.Text = "Disable Eraser";
-            }
-            else
-            {
-                // Re-enable ScrollViewer manipulation
-                PdfScrollViewer.HorizontalScrollMode = ScrollMode.Enabled;
-                PdfScrollViewer.VerticalScrollMode = ScrollMode.Enabled;
-                PdfScrollViewer.ZoomMode = ZoomMode.Enabled;
-                
-                EraserModeTextBlock.Text = "Enable Eraser";
+                case ToolMode.Select:
+                    // Re-enable ScrollViewer manipulation
+                    PdfScrollViewer.HorizontalScrollMode = ScrollMode.Enabled;
+                    PdfScrollViewer.VerticalScrollMode = ScrollMode.Enabled;
+                    PdfScrollViewer.ZoomMode = ZoomMode.Enabled;
+                    break;
+                    
+                case ToolMode.Pen:
+                case ToolMode.Eraser:
+                    // Disable ScrollViewer manipulation when in drawing/erasing mode
+                    PdfScrollViewer.HorizontalScrollMode = ScrollMode.Disabled;
+                    PdfScrollViewer.VerticalScrollMode = ScrollMode.Disabled;
+                    PdfScrollViewer.ZoomMode = ZoomMode.Disabled;
+                    break;
             }
         }
 
@@ -827,7 +827,7 @@ namespace MicaPDF
 
         private void InkCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
-            if (_isPenModeEnabled)
+            if (_currentTool == ToolMode.Pen)
             {
                 _isDrawing = true;
                 _currentStroke = new Polyline
@@ -845,7 +845,7 @@ namespace MicaPDF
                 
                 PdfInkCanvas.CapturePointer(e.Pointer);
             }
-            else if (_isEraserModeEnabled)
+            else if (_currentTool == ToolMode.Eraser)
             {
                 // Start erasing when pointer is pressed
                 _isEraserActive = true;
@@ -857,12 +857,12 @@ namespace MicaPDF
 
         private void InkCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
         {
-            if (_isPenModeEnabled && _isDrawing && _currentStroke != null)
+            if (_currentTool == ToolMode.Pen && _isDrawing && _currentStroke != null)
             {
                 var point = e.GetCurrentPoint(PdfInkCanvas).Position;
                 _currentStroke.Points.Add(point);
             }
-            else if (_isEraserModeEnabled && _isEraserActive)
+            else if (_currentTool == ToolMode.Eraser && _isEraserActive)
             {
                 // Continue erasing only while pointer is pressed
                 var point = e.GetCurrentPoint(PdfInkCanvas).Position;
@@ -872,13 +872,13 @@ namespace MicaPDF
 
         private void InkCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
-            if (_isPenModeEnabled)
+            if (_currentTool == ToolMode.Pen)
             {
                 _isDrawing = false;
                 _currentStroke = null;
                 PdfInkCanvas.ReleasePointerCapture(e.Pointer);
             }
-            else if (_isEraserModeEnabled)
+            else if (_currentTool == ToolMode.Eraser)
             {
                 _isEraserActive = false;
                 PdfInkCanvas.ReleasePointerCapture(e.Pointer);

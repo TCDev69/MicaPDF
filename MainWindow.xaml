@@ -59,12 +59,20 @@
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItemSeparator/>
+                <NavigationViewItem Tag="selectmode">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE765;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="Select"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
                 <NavigationViewItem Tag="penmode">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE76D;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock x:Name="PenModeTextBlock" Text="Enable Pen"/>
+                        <TextBlock Text="Pen"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItem Tag="eraser">
@@ -72,7 +80,7 @@
                         <FontIcon Glyph="&#xE75C;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock x:Name="EraserModeTextBlock" Text="Enable Eraser"/>
+                        <TextBlock Text="Eraser"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItem Tag="clearink">

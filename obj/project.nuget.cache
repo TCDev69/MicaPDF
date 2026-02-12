@@ -1,21 +1,22 @@
 {
   "version": 2,
-  "dgSpecHash": "rwD5gsVci1Y=",
+  "dgSpecHash": "HsPQCWRyHiQ=",
   "success": true,
-  "projectFilePath": "C:\\Users\\TCDev\\Documents\\PDFViewer\\PDFViewer.csproj",
+  "projectFilePath": "C:\\Users\\TCDev\\Documents\\MicaPDF\\PDFViewer.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.net.illink.tasks\\8.0.24\\microsoft.net.illink.tasks.8.0.24.nupkg.sha512",
     "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.windows.sdk.buildtools\\10.0.22621.3233\\microsoft.windows.sdk.buildtools.10.0.22621.3233.nupkg.sha512",
     "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.windowsappsdk\\1.5.240802000\\microsoft.windowsappsdk.1.5.240802000.nupkg.sha512",
-    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x86\\8.0.14\\microsoft.netcore.app.runtime.win-x86.8.0.14.nupkg.sha512",
-    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\8.0.14\\microsoft.netcore.app.runtime.win-x64.8.0.14.nupkg.sha512",
-    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.netcore.app.runtime.win-arm64\\8.0.14\\microsoft.netcore.app.runtime.win-arm64.8.0.14.nupkg.sha512",
-    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x86\\8.0.14\\microsoft.windowsdesktop.app.runtime.win-x86.8.0.14.nupkg.sha512",
-    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\8.0.14\\microsoft.windowsdesktop.app.runtime.win-x64.8.0.14.nupkg.sha512",
-    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-arm64\\8.0.14\\microsoft.windowsdesktop.app.runtime.win-arm64.8.0.14.nupkg.sha512",
-    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x86\\8.0.14\\microsoft.aspnetcore.app.runtime.win-x86.8.0.14.nupkg.sha512",
-    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\8.0.14\\microsoft.aspnetcore.app.runtime.win-x64.8.0.14.nupkg.sha512",
-    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-arm64\\8.0.14\\microsoft.aspnetcore.app.runtime.win-arm64.8.0.14.nupkg.sha512",
-    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.windows.sdk.net.ref\\10.0.22621.57\\microsoft.windows.sdk.net.ref.10.0.22621.57.nupkg.sha512"
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\8.0.24\\microsoft.netcore.app.runtime.win-x64.8.0.24.nupkg.sha512",
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x86\\8.0.24\\microsoft.netcore.app.runtime.win-x86.8.0.24.nupkg.sha512",
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.netcore.app.runtime.win-arm64\\8.0.24\\microsoft.netcore.app.runtime.win-arm64.8.0.24.nupkg.sha512",
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\8.0.24\\microsoft.windowsdesktop.app.runtime.win-x64.8.0.24.nupkg.sha512",
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x86\\8.0.24\\microsoft.windowsdesktop.app.runtime.win-x86.8.0.24.nupkg.sha512",
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-arm64\\8.0.24\\microsoft.windowsdesktop.app.runtime.win-arm64.8.0.24.nupkg.sha512",
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\8.0.24\\microsoft.aspnetcore.app.runtime.win-x64.8.0.24.nupkg.sha512",
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x86\\8.0.24\\microsoft.aspnetcore.app.runtime.win-x86.8.0.24.nupkg.sha512",
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-arm64\\8.0.24\\microsoft.aspnetcore.app.runtime.win-arm64.8.0.24.nupkg.sha512",
+    "C:\\Users\\TCDev\\.nuget\\packages\\microsoft.windows.sdk.net.ref\\10.0.22621.56\\microsoft.windows.sdk.net.ref.10.0.22621.56.nupkg.sha512"
   ],
   "logs": []
 }
