@@ -31,9 +31,6 @@ jobs:
     - name: Build x64 Release
       run: dotnet publish -c Release -r win-x64 -p:Platform=x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
       
-    - name: Build x86 Release
-      run: dotnet publish -c Release -r win-x86 -p:Platform=x86 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
-      
     - name: Build ARM64 Release
       run: dotnet publish -c Release -r win-arm64 -p:Platform=ARM64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
       
@@ -52,7 +49,6 @@ jobs:
         
         1. Download the appropriate version for your system:
            - MicaPDF-x64.exe (for 64-bit Windows - most common)
-           - MicaPDF-x86.exe (for 32-bit Windows)
            - MicaPDF-ARM64.exe (for ARM64 Windows devices)
         
         2. Run the downloaded file
@@ -193,59 +189,6 @@ jobs:
         "@ | Out-File -FilePath "installer-x64.iss" -Encoding UTF8
       shell: pwsh
       
-    - name: Create x86 Installer Script
-      run: |
-        @"
-        #define MyAppName "MicaPDF"
-        #define MyAppVersion "1.0.0"
-        #define MyAppPublisher "MicaPDF"
-        #define MyAppURL "https://github.com/yourusername/MicaPDF"
-        #define MyAppExeName "MicaPDF.exe"
-
-        [Setup]
-        AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
-        AppName={#MyAppName}
-        AppVersion={#MyAppVersion}
-        AppPublisher={#MyAppPublisher}
-        AppPublisherURL={#MyAppURL}
-        AppSupportURL={#MyAppURL}
-        AppUpdatesURL={#MyAppURL}
-        DefaultDirName={autopf32}\{#MyAppName}
-        DefaultGroupName={#MyAppName}
-        AllowNoIcons=yes
-        OutputDir=Release
-        OutputBaseFilename=MicaPDF-Setup-x86
-        Compression=lzma2
-        SolidCompression=yes
-        WizardStyle=modern
-        ArchitecturesAllowed=x86
-        PrivilegesRequired=lowest
-
-        [Languages]
-        Name: "english"; MessagesFile: "compiler:Default.isl"
-
-        [Tasks]
-        Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-
-        [Files]
-        Source: "bin\x86\Release\net8.0-windows10.0.22621.0\win-x86\publish\MicaPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
-
-        [Icons]
-        Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-        Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-        Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-
-        [Run]
-        Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
-        [Registry]
-        Root: HKCU; Subkey: "Software\Classes\.pdf"; ValueType: string; ValueName: ""; ValueData: "MicaPDF.Document"; Flags: uninsdeletevalue
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document"; ValueType: string; ValueName: ""; ValueData: "PDF Document"; Flags: uninsdeletekey
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
-        Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-        "@ | Out-File -FilePath "installer-x86.iss" -Encoding UTF8
-      shell: pwsh
-      
     - name: Create ARM64 Installer Script
       run: |
         @"
@@ -303,7 +246,6 @@ jobs:
     - name: Build Installers
       run: |
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-x64.iss
-        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-x86.iss
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-arm64.iss
       shell: pwsh
       continue-on-error: true
@@ -311,7 +253,6 @@ jobs:
     - name: Create Portable ZIP
       run: |
         Compress-Archive -Path "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
-        Compress-Archive -Path "bin\x86\Release\net8.0-windows10.0.22621.0\win-x86\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-x86.zip" -Force
         Compress-Archive -Path "bin\ARM64\Release\net8.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
       shell: pwsh
       
@@ -331,10 +272,8 @@ jobs:
       with:
         files: |
           Release/MicaPDF-Portable-x64.zip
-          Release/MicaPDF-Portable-x86.zip
           Release/MicaPDF-Portable-ARM64.zip
           Release/MicaPDF-Setup-x64.exe
-          Release/MicaPDF-Setup-x86.exe
           Release/MicaPDF-Setup-ARM64.exe
           Release/INSTALL.txt
           Release/README.md
@@ -347,14 +286,12 @@ jobs:
           
           **Installer (Recommended)**
           - `MicaPDF-Setup-x64.exe` - Windows Installer for 64-bit systems
-          - `MicaPDF-Setup-x86.exe` - Windows Installer for 32-bit systems
           - `MicaPDF-Setup-ARM64.exe` - Windows Installer for ARM64 devices
           
           All installers include automatic file association setup.
           
           **Portable Versions**
           - `MicaPDF-Portable-x64.zip` - Portable version for 64-bit Windows
-          - `MicaPDF-Portable-x86.zip` - Portable version for 32-bit Windows  
           - `MicaPDF-Portable-ARM64.zip` - Portable version for ARM64 Windows
           
           ### Features
@@ -369,3 +306,4 @@ jobs:
           - Windows 11 recommended
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
