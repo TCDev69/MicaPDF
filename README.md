@@ -17,6 +17,10 @@ MicaPDF is a modern PDF viewer designed for Windows 11, featuring a clean user i
 
 ## Installation
 
+### Installer
+The easiest way to install MicaPDF is using the provided installer (setup.exe).
+The installer will automatically check for the required .NET Desktop Runtime 8.0 and prompt you to download it if it's missing.
+
 ### From Source
 To build and run the application from source, you will need the .NET 8.0 SDK and Visual Studio 2022 (or VS Code) with the "Windows App SDK" workload installed.
 
@@ -24,11 +28,15 @@ To build and run the application from source, you will need the .NET 8.0 SDK and
 2.  Open the solution in your IDE.
 3.  Build and run the MicaPDF project.
 
-You can also publish a self-contained executable using the command line:
+You can also publish the executable using the command line:
 
 `powershell
-dotnet publish -c Release -r win-x64 -p:Platform=x64 --self-contained true -p:PublishSingleFile=true
+dotnet publish -c Release -r win-x64 -p:Platform=x64 --self-contained false -p:PublishSingleFile=true
 `
+
+## Requirements
+*   Windows 10 version 1809 (build 17763) or later
+*   .NET Desktop Runtime 8.0
 
 ## Usage
 

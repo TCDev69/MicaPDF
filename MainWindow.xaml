@@ -61,7 +61,7 @@
                 <NavigationViewItemSeparator/>
                 <NavigationViewItem Tag="selectmode">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE765;"/>
+                        <FontIcon Glyph="&#xE962;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
                         <TextBlock Text="Select"/>
