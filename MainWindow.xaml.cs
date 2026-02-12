@@ -827,6 +827,8 @@ namespace MicaPDF
 
         private void InkCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
+            if (sender is not Canvas currentCanvas) return;
+
             if (_currentTool == ToolMode.Pen)
             {
                 _isDrawing = true;
@@ -839,58 +841,62 @@ namespace MicaPDF
                     StrokeEndLineCap = PenLineCap.Round
                 };
 
-                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
+                var point = e.GetCurrentPoint(currentCanvas).Position;
                 _currentStroke.Points.Add(point);
-                PdfInkCanvas.Children.Add(_currentStroke);
+                currentCanvas.Children.Add(_currentStroke);
                 
-                PdfInkCanvas.CapturePointer(e.Pointer);
+                currentCanvas.CapturePointer(e.Pointer);
             }
             else if (_currentTool == ToolMode.Eraser)
             {
                 // Start erasing when pointer is pressed
                 _isEraserActive = true;
-                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
-                EraseStrokesAtPoint(point);
-                PdfInkCanvas.CapturePointer(e.Pointer);
+                var point = e.GetCurrentPoint(currentCanvas).Position;
+                EraseStrokesAtPoint(point, currentCanvas);
+                currentCanvas.CapturePointer(e.Pointer);
             }
         }
 
         private void InkCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
         {
+            if (sender is not Canvas currentCanvas) return;
+
             if (_currentTool == ToolMode.Pen && _isDrawing && _currentStroke != null)
             {
-                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
+                var point = e.GetCurrentPoint(currentCanvas).Position;
                 _currentStroke.Points.Add(point);
             }
             else if (_currentTool == ToolMode.Eraser && _isEraserActive)
             {
                 // Continue erasing only while pointer is pressed
-                var point = e.GetCurrentPoint(PdfInkCanvas).Position;
-                EraseStrokesAtPoint(point);
+                var point = e.GetCurrentPoint(currentCanvas).Position;
+                EraseStrokesAtPoint(point, currentCanvas);
             }
         }
 
         private void InkCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
+            if (sender is not Canvas currentCanvas) return;
+
             if (_currentTool == ToolMode.Pen)
             {
                 _isDrawing = false;
                 _currentStroke = null;
-                PdfInkCanvas.ReleasePointerCapture(e.Pointer);
+                currentCanvas.ReleasePointerCapture(e.Pointer);
             }
             else if (_currentTool == ToolMode.Eraser)
             {
                 _isEraserActive = false;
-                PdfInkCanvas.ReleasePointerCapture(e.Pointer);
+                currentCanvas.ReleasePointerCapture(e.Pointer);
             }
         }
 
-        private void EraseStrokesAtPoint(Windows.Foundation.Point point)
+        private void EraseStrokesAtPoint(Windows.Foundation.Point point, Canvas targetCanvas)
         {
             const double eraserRadius = 20; // Size of eraser
             var strokesToRemove = new List<UIElement>();
 
-            foreach (var child in PdfInkCanvas.Children)
+            foreach (var child in targetCanvas.Children)
             {
                 if (child is Polyline polyline)
                 {
@@ -914,7 +920,7 @@ namespace MicaPDF
             // Remove all strokes that were hit
             foreach (var stroke in strokesToRemove)
             {
-                PdfInkCanvas.Children.Remove(stroke);
+                targetCanvas.Children.Remove(stroke);
             }
         }
 
