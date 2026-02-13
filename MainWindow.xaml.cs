@@ -923,9 +923,22 @@ namespace MicaPDF
                 PageNumberBox.Value = parsedValue; // keep UI in sync
             }
 
-            if (requestedValue >= 1 && requestedValue <= _pdfDocument.PageCount)
+            // Check for offset in filename (e.g. filename_+2.pdf)
+            int offset = 0;
+            if (_currentFile != null)
             {
-                _currentPageIndex = (uint)(requestedValue - 1);
+                var match = System.Text.RegularExpressions.Regex.Match(_currentFile.Name, @"_\+(\d+)");
+                if (match.Success && int.TryParse(match.Groups[1].Value, out int extractedOffset))
+                {
+                    offset = extractedOffset;
+                }
+            }
+
+            double targetPage = requestedValue + offset;
+
+            if (targetPage >= 1 && targetPage <= _pdfDocument.PageCount)
+            {
+                _currentPageIndex = (uint)(targetPage - 1);
 
                 if (_isContinuousMode)
                 {
