@@ -131,12 +131,6 @@ jobs:
         "@ | Out-File -FilePath "Release\README.md" -Encoding UTF8
       shell: pwsh
       
-    - name: Download .NET Runtimes
-      run: |
-        Invoke-WebRequest -Uri "https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.exe" -OutFile "dotnet-runtime-x64.exe"
-        Invoke-WebRequest -Uri "https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-arm64.exe" -OutFile "dotnet-runtime-arm64.exe"
-      shell: pwsh
-
     - name: Install Inno Setup
       run: |
         choco install innosetup -y
@@ -176,7 +170,6 @@ jobs:
 
         [Tasks]
         Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-        Name: "install_dotnet"; Description: "Install .NET Desktop Runtime 8.0 (Required if not installed)"; GroupDescription: "Prerequisites"; Flags: unchecked
 
         [Files]
         Source: "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -196,47 +189,34 @@ jobs:
         Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
         [Code]
-        function IsDotNetInstalled: Boolean;
+        function InitializeSetup: Boolean;
+        var
+          ErrorCode: Integer;
+          NetRuntimeInstalled: Boolean;
+          Result1: Boolean;
         begin
           // Check for .NET 8 Desktop Runtime (x64)
-          Result := RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64\sharedhost\Microsoft.WindowsDesktop.App\8.0.0') or 
-                    RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedhost\Microsoft.WindowsDesktop.App\8.0.0');
-        end;
+          // Registry key for .NET 8
+          NetRuntimeInstalled := RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64\sharedhost\Microsoft.NETCore.App\8.0.0') or 
+                                 RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedhost\Microsoft.NETCore.App\8.0.0');
 
-        procedure CurPageChanged(CurPageID: Integer);
-        var
-          I: Integer;
-        begin
-          if CurPageID = wpSelectTasks then
+          if not NetRuntimeInstalled then
           begin
-            // Auto-select .NET install task if not installed
-            if not IsDotNetInstalled then
+            if MsgBox('This application requires .NET Desktop Runtime 8.0. Would you like to download it now?', mbConfirmation, MB_YESNO) = IDYES then
             begin
-                for I := 0 to WizardForm.TasksList.Items.Count - 1 do
-                begin
-                    if Pos('Install .NET', WizardForm.TasksList.ItemCaption[I]) > 0 then
-                    begin
-                        WizardForm.TasksList.Checked[I] := True;
-                        Break;
-                    end;
-                end;
+              ShellExec('open', 'https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer', '', '', SW_SHOWNORMAL, mbConfirmation, ErrorCode);
+              MsgBox('Please install the .NET Runtime and then run this setup again.', mbInformation, MB_OK);
+              Result := False;
+            end
+            else
+            begin
+              MsgBox('.NET Runtime 8.0 is required. Setup cannot continue.', mbCriticalError, MB_OK);
+              Result := False;
             end;
-          end;
-        end;
-        
-        function PrepareToInstall(var NeedsRestart: Boolean): String;
-        var
-          ResultCode: Integer;
-        begin
-          if WizardIsTaskSelected('install_dotnet') then
+          end
+          else
           begin
-            try
-              DownloadTemporaryFile('https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.exe', ExpandConstant('{tmp}\dotnet_setup.exe'), '', nil);
-              Exec(ExpandConstant('{tmp}\dotnet_setup.exe'), '/install /passive /norestart', '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
-            except
-              Result := GetExceptionMessage;
-              Exit;
-            end;
+            Result := True;
           end;
         end;
         "@ | Out-File -FilePath "installer-x64.iss" -Encoding UTF8
@@ -276,7 +256,6 @@ jobs:
 
         [Tasks]
         Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-        Name: "install_dotnet"; Description: "Install .NET Desktop Runtime 8.0 (Required if not installed)"; GroupDescription: "Prerequisites"; Flags: unchecked
 
         [Files]
         Source: "bin\ARM64\Release\net8.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -296,46 +275,32 @@ jobs:
         Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
         [Code]
-        function IsDotNetInstalled: Boolean;
+        function InitializeSetup: Boolean;
+        var
+          ErrorCode: Integer;
+          NetRuntimeInstalled: Boolean;
+          Result1: Boolean;
         begin
           // Check for .NET 8 Desktop Runtime (ARM64)
-          Result := RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\arm64\sharedhost\Microsoft.WindowsDesktop.App\8.0.0');
-        end;
+          NetRuntimeInstalled := RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\arm64\sharedhost\Microsoft.NETCore.App\8.0.0');
 
-        procedure CurPageChanged(CurPageID: Integer);
-        var
-          I: Integer;
-        begin
-          if CurPageID = wpSelectTasks then
+          if not NetRuntimeInstalled then
           begin
-            // Auto-select .NET install task if not installed
-            if not IsDotNetInstalled then
+            if MsgBox('This application requires .NET Desktop Runtime 8.0. Would you like to download it now?', mbConfirmation, MB_YESNO) = IDYES then
             begin
-                for I := 0 to WizardForm.TasksList.Items.Count - 1 do
-                begin
-                    if Pos('Install .NET', WizardForm.TasksList.ItemCaption[I]) > 0 then
-                    begin
-                        WizardForm.TasksList.Checked[I] := True;
-                        Break;
-                    end;
-                end;
+              ShellExec('open', 'https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-arm64-installer', '', '', SW_SHOWNORMAL, mbConfirmation, ErrorCode);
+              MsgBox('Please install the .NET Runtime and then run this setup again.', mbInformation, MB_OK);
+              Result := False;
+            end
+            else
+            begin
+              MsgBox('.NET Runtime 8.0 is required. Setup cannot continue.', mbCriticalError, MB_OK);
+              Result := False;
             end;
-          end;
-        end;
-        
-        function PrepareToInstall(var NeedsRestart: Boolean): String;
-        var
-          ResultCode: Integer;
-        begin
-          if WizardIsTaskSelected('install_dotnet') then
+          end
+          else
           begin
-            try
-              DownloadTemporaryFile('https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-arm64.exe', ExpandConstant('{tmp}\dotnet_setup.exe'), '', nil);
-              Exec(ExpandConstant('{tmp}\dotnet_setup.exe'), '/install /passive /norestart', '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
-            except
-              Result := GetExceptionMessage;
-              Exit;
-            end;
+            Result := True;
           end;
         end;
         "@ | Out-File -FilePath "installer-arm64.iss" -Encoding UTF8
@@ -404,4 +369,3 @@ jobs:
           - Windows 11 recommended
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
