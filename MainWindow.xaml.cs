@@ -44,6 +44,7 @@ namespace MicaPDF
         private ToolMode _currentTool = ToolMode.Select;
         private bool _isEraserActive = false;
         private bool _isDoublePageMode = false;
+        private bool _isCoverPageMode = false;
         private bool _isContinuousMode = false;
         private Polyline? _currentStroke;
         private bool _isDrawing = false;
@@ -303,6 +304,9 @@ namespace MicaPDF
                 case "doublepagemode":
                     await ToggleDoublePageMode();
                     break;
+                case "coverpagemode":
+                    await ToggleCoverPageMode();
+                    break;
                 case "continuousmode":
                     await ToggleContinuousMode();
                     break;
@@ -484,11 +488,42 @@ namespace MicaPDF
 
                 if (_isDoublePageMode)
                 {
-                    // Render two pages side by side
-                    // Left page (current page)
-                    if (_currentPageIndex < _pdfDocument.PageCount)
+                    // Calculate left and right page indices based on mode
+                    uint leftIndex, rightIndex;
+                    bool showLeft = true, showRight = true;
+
+                    if (_isCoverPageMode)
                     {
-                        using (var page = _pdfDocument.GetPage(_currentPageIndex))
+                        if (_currentPageIndex == 0)
+                        {
+                            // Cover page mode: Page 0 is alone on the right
+                            leftIndex = 999999; // Invalid
+                            showLeft = false;
+                            rightIndex = 0;
+                        }
+                        else
+                        {
+                            // Even-Odd pairing: 1-2, 3-4
+                            // Ensure we stick to the odd starting page for the spread
+                            // If _currentPageIndex is even (2), take (1,2)
+                            uint baseIndex = _currentPageIndex % 2 == 0 ? _currentPageIndex - 1 : _currentPageIndex;
+                            leftIndex = baseIndex;
+                            rightIndex = baseIndex + 1;
+                        }
+                    }
+                    else
+                    {
+                        // Standard Odd-Even pairing: 0-1, 2-3
+                        // Ensure we stick to even starting page
+                        uint baseIndex = _currentPageIndex % 2 != 0 ? _currentPageIndex - 1 : _currentPageIndex;
+                        leftIndex = baseIndex;
+                        rightIndex = baseIndex + 1;
+                    }
+
+                    // Render Left page
+                    if (showLeft && leftIndex < _pdfDocument.PageCount)
+                    {
+                        using (var page = _pdfDocument.GetPage(leftIndex))
                         {
                             var renderOptions = new PdfPageRenderOptions
                             {
@@ -499,18 +534,21 @@ namespace MicaPDF
                             using (var stream = new InMemoryRandomAccessStream())
                             {
                                 await page.RenderToStreamAsync(stream, renderOptions);
-                                
                                 var bitmapImage = new BitmapImage();
                                 await bitmapImage.SetSourceAsync(stream);
                                 PdfImageLeft.Source = bitmapImage;
                             }
                         }
                     }
-                    
-                    // Right page (next page)
-                    if (_currentPageIndex + 1 < _pdfDocument.PageCount)
+                    else
                     {
-                        using (var page = _pdfDocument.GetPage(_currentPageIndex + 1))
+                        PdfImageLeft.Source = null;
+                    }
+                    
+                    // Render Right page
+                    if (showRight && rightIndex < _pdfDocument.PageCount)
+                    {
+                        using (var page = _pdfDocument.GetPage(rightIndex))
                         {
                             var renderOptions = new PdfPageRenderOptions
                             {
@@ -521,23 +559,28 @@ namespace MicaPDF
                             using (var stream = new InMemoryRandomAccessStream())
                             {
                                 await page.RenderToStreamAsync(stream, renderOptions);
-                                
                                 var bitmapImage = new BitmapImage();
                                 await bitmapImage.SetSourceAsync(stream);
                                 PdfImageRight.Source = bitmapImage;
                             }
                         }
-                        
-                        PageInfoTextBlock.Text = $"{_currentPageIndex + 1}-{_currentPageIndex + 2} / {_pdfDocument.PageCount}";
-                        PageHeaderTextBlock.Content = $"Page {_currentPageIndex + 1}-{_currentPageIndex + 2} / {_pdfDocument.PageCount}";
                     }
                     else
                     {
-                        // Only one page left
                         PdfImageRight.Source = null;
-                        PageInfoTextBlock.Text = $"{_currentPageIndex + 1} / {_pdfDocument.PageCount}";
-                        PageHeaderTextBlock.Content = $"Page {_currentPageIndex + 1} / {_pdfDocument.PageCount}";
-                    }
+                    } 
+                        
+                    // Update Text Info
+                    string text = "";
+                    if (!showLeft) text = $"{rightIndex + 1}";
+                    else if (rightIndex >= _pdfDocument.PageCount) text = $"{leftIndex + 1}";
+                    else text = $"{leftIndex + 1}-{rightIndex + 1}";
+                    
+                    PageInfoTextBlock.Text = $"{text} / {_pdfDocument.PageCount}";
+                    PageHeaderTextBlock.Content = $"Page {text} / {_pdfDocument.PageCount}";
+                    
+                    // Update current index to be the start of the visible spread so navigation works
+                    _currentPageIndex = showLeft ? leftIndex : rightIndex;
                 }
                 else
                 {
@@ -586,10 +629,35 @@ namespace MicaPDF
         {
             if (_currentPageIndex > 0)
             {
+                if (_isContinuousMode)
+                {
+                    _currentPageIndex--;
+                    ScrollToCurrentPage();
+                    return; 
+                }
+
                 if (_isDoublePageMode)
                 {
                     // In double page mode, move back by 2 pages
-                    _currentPageIndex = _currentPageIndex >= 2 ? _currentPageIndex - 2 : 0;
+                    if (_isCoverPageMode && _currentPageIndex == 0)
+                    { 
+                         // Already at start
+                         return;
+                    }
+
+                    if (_isCoverPageMode)
+                    {
+                        // Current logic: 1-2 (index 1), 3-4 (index 3)
+                        // If at 1, goes to 0
+                        // If at 3, goes to 1
+                        if (_currentPageIndex == 1) _currentPageIndex = 0;
+                        else _currentPageIndex = _currentPageIndex >= 2 ? _currentPageIndex - 2 : 0;
+                    }
+                    else
+                    {
+                        // Standard: 0-1, 2-3
+                         _currentPageIndex = _currentPageIndex >= 2 ? _currentPageIndex - 2 : 0;
+                    }
                 }
                 else
                 {
@@ -608,10 +676,27 @@ namespace MicaPDF
         {
             if (_pdfDocument != null && _currentPageIndex < _pdfDocument.PageCount - 1)
             {
+                if (_isContinuousMode)
+                {
+                    _currentPageIndex++;
+                    ScrollToCurrentPage();
+                    return;
+                }
+
                 if (_isDoublePageMode)
                 {
                     // In double page mode, move forward by 2 pages
-                    _currentPageIndex = Math.Min(_currentPageIndex + 2, _pdfDocument.PageCount - 1);
+                    if (_isCoverPageMode)
+                    {
+                         // If at 0, go to 1 (pair 1-2)
+                         // If at 1, go to 3 (pair 3-4)
+                         if (_currentPageIndex == 0) _currentPageIndex = 1;
+                         else _currentPageIndex = Math.Min(_currentPageIndex + 2, _pdfDocument.PageCount - 1);
+                    }
+                    else
+                    {
+                        _currentPageIndex = Math.Min(_currentPageIndex + 2, _pdfDocument.PageCount - 1);
+                    }
                 }
                 else
                 {
@@ -807,6 +892,22 @@ namespace MicaPDF
             }
         }
 
+        private void ScrollToCurrentPage()
+        {
+            if (_isContinuousMode && (int)_currentPageIndex < ContinuousPageContainer.Children.Count)
+            {
+                var targetElement = ContinuousPageContainer.Children[(int)_currentPageIndex] as FrameworkElement;
+                if (targetElement != null)
+                {
+                    targetElement.StartBringIntoView(new BringIntoViewOptions 
+                    { 
+                        AnimationDesired = true,
+                        VerticalAlignmentRatio = 0 // Scroll to top of the element
+                    });
+                }
+            }
+        }
+
         private async System.Threading.Tasks.Task NavigateToPage()
         {
             if (_pdfDocument == null)
@@ -828,19 +929,7 @@ namespace MicaPDF
 
                 if (_isContinuousMode)
                 {
-                    // Scroll to the specific page in continuous mode
-                    if ((int)_currentPageIndex < ContinuousPageContainer.Children.Count)
-                    {
-                        var targetElement = ContinuousPageContainer.Children[(int)_currentPageIndex] as FrameworkElement;
-                        if (targetElement != null)
-                        {
-                            targetElement.StartBringIntoView(new BringIntoViewOptions 
-                            { 
-                                AnimationDesired = true,
-                                VerticalAlignmentRatio = 0 // Scroll to top of the element
-                            });
-                        }
-                    }
+                    ScrollToCurrentPage();
                 }
                 else
                 {
@@ -894,11 +983,16 @@ namespace MicaPDF
                 SinglePageContainer.Visibility = Visibility.Collapsed;
                 DoublePageContainer.Visibility = Visibility.Visible;
                 DoublePageModeTextBlock.Text = "Disable Double Page";
-                
-                // Make sure we're on an even page (left page)
-                if (_currentPageIndex % 2 != 0 && _currentPageIndex > 0)
+                CoverPageItem.Visibility = Visibility.Visible;
+
+                // Adjust page index for the new mode
+                if (_isCoverPageMode)
                 {
-                    _currentPageIndex--;
+                    if (_currentPageIndex > 0 && _currentPageIndex % 2 == 0) _currentPageIndex--;
+                }
+                else
+                {
+                    if (_currentPageIndex % 2 != 0) _currentPageIndex--;
                 }
             }
             else
@@ -907,8 +1001,38 @@ namespace MicaPDF
                 SinglePageContainer.Visibility = Visibility.Visible;
                 DoublePageContainer.Visibility = Visibility.Collapsed;
                 DoublePageModeTextBlock.Text = "Enable Double Page";
+                CoverPageItem.Visibility = Visibility.Collapsed;
             }
             
+            await RenderCurrentPage();
+        }
+
+        private async Task ToggleCoverPageMode()
+        {
+            _isCoverPageMode = !_isCoverPageMode;
+            CoverPageModeTextBlock.Text = _isCoverPageMode ? "Cover Page: On" : "Cover Page: Off";
+            
+            // Re-align page index
+            if (_isDoublePageMode)
+            {
+                 if (_isCoverPageMode)
+                {
+                    // If switching TO cover mode
+                    // Even pages (0, 2, 4) should become the Right page of previous spread or single cover
+                    // 0 -> 0 (Cover)
+                    // 2 -> 1-2
+                    if (_currentPageIndex > 0 && _currentPageIndex % 2 == 0)
+                         _currentPageIndex--;
+                }
+                else
+                {
+                    // If switching FROM cover mode
+                    // Odd pages (1, 3, 5) should align to even start (0-1, 2-3)
+                    if (_currentPageIndex % 2 != 0)
+                        _currentPageIndex--;
+                }
+            }
+
             await RenderCurrentPage();
         }
 
@@ -926,10 +1050,11 @@ namespace MicaPDF
                 ZoomLevelTextBlock.Text = "100%";
                 ZoomHeaderTextBlock.Content = "Zoom: 100%";
                 
-                // Disable zoom controls
+                // Disable zoom controls and Double Page button
                 ZoomInItem.IsEnabled = false;
                 ZoomOutItem.IsEnabled = false;
                 ZoomResetItem.IsEnabled = false;
+                DoublePageItem.IsEnabled = false;
 
                 // Switch to continuous view
                 SinglePageContainer.Visibility = Visibility.Collapsed;
@@ -945,10 +1070,11 @@ namespace MicaPDF
             }
             else
             {
-                // Re-enable zoom controls
+                // Re-enable zoom controls and Double Page button
                 ZoomInItem.IsEnabled = true;
                 ZoomOutItem.IsEnabled = true;
                 ZoomResetItem.IsEnabled = true;
+                DoublePageItem.IsEnabled = true;
 
                 // Switch back to single page view
                 SinglePageContainer.Visibility = Visibility.Visible;
