@@ -29,10 +29,10 @@ jobs:
       run: dotnet restore
       
     - name: Build x64 Release
-      run: dotnet publish -c Release -r win-x64 -p:Platform=x64 --self-contained false -p:PublishSingleFile=true -p:PublishReadyToRun=true
+      run: dotnet publish -c Release -r win-x64 -p:Platform=x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
       
     - name: Build ARM64 Release
-      run: dotnet publish -c Release -r win-arm64 -p:Platform=ARM64 --self-contained false -p:PublishSingleFile=true -p:PublishReadyToRun=true
+      run: dotnet publish -c Release -r win-arm64 -p:Platform=ARM64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
       
     - name: Create Release Folder
       run: |
@@ -76,7 +76,6 @@ jobs:
         Requirements:
         - Windows 10 version 1809 (build 17763) or later
         - Windows 11 recommended for best Mica effect
-        - .NET Desktop Runtime 8.0 (installer will prompt to download if missing)
         
         "@ | Out-File -FilePath "Release\INSTALL.txt" -Encoding UTF8
       shell: pwsh
@@ -187,38 +186,6 @@ jobs:
         Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document"; ValueType: string; ValueName: ""; ValueData: "PDF Document"; Flags: uninsdeletekey
         Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
         Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-
-        [Code]
-        function InitializeSetup: Boolean;
-        var
-          ErrorCode: Integer;
-          NetRuntimeInstalled: Boolean;
-          Result1: Boolean;
-        begin
-          // Check for .NET 8 Desktop Runtime (x64)
-          // Registry key for .NET 8
-          NetRuntimeInstalled := RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64\sharedhost\Microsoft.NETCore.App\8.0.0') or 
-                                 RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedhost\Microsoft.NETCore.App\8.0.0');
-
-          if not NetRuntimeInstalled then
-          begin
-            if MsgBox('This application requires .NET Desktop Runtime 8.0. Would you like to download it now?', mbConfirmation, MB_YESNO) = IDYES then
-            begin
-              ShellExec('open', 'https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer', '', '', SW_SHOWNORMAL, mbConfirmation, ErrorCode);
-              MsgBox('Please install the .NET Runtime and then run this setup again.', mbInformation, MB_OK);
-              Result := False;
-            end
-            else
-            begin
-              MsgBox('.NET Runtime 8.0 is required. Setup cannot continue.', mbCriticalError, MB_OK);
-              Result := False;
-            end;
-          end
-          else
-          begin
-            Result := True;
-          end;
-        end;
         "@ | Out-File -FilePath "installer-x64.iss" -Encoding UTF8
       shell: pwsh
       
@@ -273,36 +240,6 @@ jobs:
         Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document"; ValueType: string; ValueName: ""; ValueData: "PDF Document"; Flags: uninsdeletekey
         Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
         Root: HKCU; Subkey: "Software\Classes\MicaPDF.Document\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
-
-        [Code]
-        function InitializeSetup: Boolean;
-        var
-          ErrorCode: Integer;
-          NetRuntimeInstalled: Boolean;
-          Result1: Boolean;
-        begin
-          // Check for .NET 8 Desktop Runtime (ARM64)
-          NetRuntimeInstalled := RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\arm64\sharedhost\Microsoft.NETCore.App\8.0.0');
-
-          if not NetRuntimeInstalled then
-          begin
-            if MsgBox('This application requires .NET Desktop Runtime 8.0. Would you like to download it now?', mbConfirmation, MB_YESNO) = IDYES then
-            begin
-              ShellExec('open', 'https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-arm64-installer', '', '', SW_SHOWNORMAL, mbConfirmation, ErrorCode);
-              MsgBox('Please install the .NET Runtime and then run this setup again.', mbInformation, MB_OK);
-              Result := False;
-            end
-            else
-            begin
-              MsgBox('.NET Runtime 8.0 is required. Setup cannot continue.', mbCriticalError, MB_OK);
-              Result := False;
-            end;
-          end
-          else
-          begin
-            Result := True;
-          end;
-        end;
         "@ | Out-File -FilePath "installer-arm64.iss" -Encoding UTF8
       shell: pwsh
       
