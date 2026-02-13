@@ -44,6 +44,7 @@ namespace MicaPDF
         private ToolMode _currentTool = ToolMode.Select;
         private bool _isEraserActive = false;
         private bool _isDoublePageMode = false;
+        private bool _isContinuousMode = false;
         private Polyline? _currentStroke;
         private bool _isDrawing = false;
 
@@ -302,6 +303,9 @@ namespace MicaPDF
                 case "doublepagemode":
                     await ToggleDoublePageMode();
                     break;
+                case "continuousmode":
+                    await ToggleContinuousMode();
+                    break;
                 case "gotopage":
                     await ShowGoToPageDialog();
                     break;
@@ -471,6 +475,13 @@ namespace MicaPDF
 
             try
             {
+                if (_isContinuousMode)
+                {
+                    // Continuous mode logic handled separately
+                    DoublePageModeTextBlock.Text = "Enable Double Page"; // Reset double page text
+                    return;
+                }
+
                 if (_isDoublePageMode)
                 {
                     // Render two pages side by side
@@ -617,10 +628,29 @@ namespace MicaPDF
 
         private async System.Threading.Tasks.Task ZoomIn()
         {
+            double oldZoom = _currentZoom;
             _currentZoom = Math.Min(_currentZoom + 0.25, 5.0);
+            
+            if (oldZoom == _currentZoom) return;
+
             ZoomLevelTextBlock.Text = $"{(_currentZoom * 100):F0}%";
             ZoomHeaderTextBlock.Content = $"Zoom: {(_currentZoom * 100):F0}%";
-            await RenderCurrentPage();
+            
+            if (_isContinuousMode)
+            {
+                // Capture relative scroll position
+                double relativeV = PdfScrollViewer.VerticalOffset / PdfScrollViewer.ExtentHeight;
+                
+                await RenderAllPages();
+                
+                // Restore relative scroll position
+                // We need to wait for layout update, but a simple approximation is to set it after rendering
+                PdfScrollViewer.ChangeView(null, relativeV * PdfScrollViewer.ExtentHeight, null, true);
+            }
+            else
+            {
+                await RenderCurrentPage();
+            }
         }
 
         private async void ZoomOutButton_Click(object sender, RoutedEventArgs e)
@@ -630,10 +660,28 @@ namespace MicaPDF
 
         private async System.Threading.Tasks.Task ZoomOut()
         {
+            double oldZoom = _currentZoom;
             _currentZoom = Math.Max(_currentZoom - 0.25, 0.5);
+
+            if (oldZoom == _currentZoom) return;
+
             ZoomLevelTextBlock.Text = $"{(_currentZoom * 100):F0}%";
             ZoomHeaderTextBlock.Content = $"Zoom: {(_currentZoom * 100):F0}%";
-            await RenderCurrentPage();
+            
+            if (_isContinuousMode)
+            {
+                // Capture relative scroll position
+                double relativeV = PdfScrollViewer.VerticalOffset / PdfScrollViewer.ExtentHeight;
+                
+                await RenderAllPages();
+
+                // Restore relative scroll position
+                PdfScrollViewer.ChangeView(null, relativeV * PdfScrollViewer.ExtentHeight, null, true);
+            }
+            else
+            {
+                await RenderCurrentPage();
+            }
         }
 
         private async void ZoomResetButton_Click(object sender, RoutedEventArgs e)
@@ -643,10 +691,28 @@ namespace MicaPDF
 
         private async System.Threading.Tasks.Task ZoomReset()
         {
+            double oldZoom = _currentZoom;
             _currentZoom = 0.5;
+
+            if (oldZoom == _currentZoom) return;
+            
             ZoomLevelTextBlock.Text = "50%";
             ZoomHeaderTextBlock.Content = "Zoom: 50%";
-            await RenderCurrentPage();
+            
+            if (_isContinuousMode)
+            {
+                // Capture relative scroll position
+                double relativeV = PdfScrollViewer.VerticalOffset / PdfScrollViewer.ExtentHeight;
+                
+                await RenderAllPages();
+                
+                // Restore relative scroll position
+                PdfScrollViewer.ChangeView(null, relativeV * PdfScrollViewer.ExtentHeight, null, true);
+            }
+            else
+            {
+                await RenderCurrentPage();
+            }
         }
 
         private async void ReloadButton_Click(object sender, RoutedEventArgs e)
@@ -759,7 +825,28 @@ namespace MicaPDF
             if (requestedValue >= 1 && requestedValue <= _pdfDocument.PageCount)
             {
                 _currentPageIndex = (uint)(requestedValue - 1);
-                await RenderCurrentPage();
+
+                if (_isContinuousMode)
+                {
+                    // Scroll to the specific page in continuous mode
+                    if ((int)_currentPageIndex < ContinuousPageContainer.Children.Count)
+                    {
+                        var targetElement = ContinuousPageContainer.Children[(int)_currentPageIndex] as FrameworkElement;
+                        if (targetElement != null)
+                        {
+                            targetElement.StartBringIntoView(new BringIntoViewOptions 
+                            { 
+                                AnimationDesired = true,
+                                VerticalAlignmentRatio = 0 // Scroll to top of the element
+                            });
+                        }
+                    }
+                }
+                else
+                {
+                    await RenderCurrentPage();
+                }
+
                 UpdateNavigationButtons();
             }
         }
@@ -823,6 +910,108 @@ namespace MicaPDF
             }
             
             await RenderCurrentPage();
+        }
+
+        private async Task ToggleContinuousMode()
+        {
+            _isContinuousMode = !_isContinuousMode;
+            
+            if (_isContinuousMode)
+            {
+                // Disable double page mode if active
+                _isDoublePageMode = false;
+                
+                // Force zoom to 100% for continuous mode
+                _currentZoom = 1.0;
+                ZoomLevelTextBlock.Text = "100%";
+                ZoomHeaderTextBlock.Content = "Zoom: 100%";
+                
+                // Disable zoom controls
+                ZoomInItem.IsEnabled = false;
+                ZoomOutItem.IsEnabled = false;
+                ZoomResetItem.IsEnabled = false;
+
+                // Switch to continuous view
+                SinglePageContainer.Visibility = Visibility.Collapsed;
+                DoublePageContainer.Visibility = Visibility.Collapsed;
+                ContinuousPageContainer.Visibility = Visibility.Visible;
+                ContinuousModeTextBlock.Text = "Disable Continuous Scroll";
+                DoublePageModeTextBlock.Text = "Enable Double Page";
+
+                // Hide page navigation controls since we show all pages
+                PageHeaderTextBlock.Content = $"Total Pages: {_pdfDocument?.PageCount ?? 0}";
+                
+                await RenderAllPages();
+            }
+            else
+            {
+                // Re-enable zoom controls
+                ZoomInItem.IsEnabled = true;
+                ZoomOutItem.IsEnabled = true;
+                ZoomResetItem.IsEnabled = true;
+
+                // Switch back to single page view
+                SinglePageContainer.Visibility = Visibility.Visible;
+                DoublePageContainer.Visibility = Visibility.Collapsed;
+                ContinuousPageContainer.Visibility = Visibility.Collapsed;
+                ContinuousModeTextBlock.Text = "Enable Continuous Scroll";
+                
+                // Restore page view
+                await RenderCurrentPage();
+            }
+        }
+
+        private async Task RenderAllPages()
+        {
+            if (_pdfDocument == null) return;
+            
+            ContinuousPageContainer.Children.Clear();
+            
+            // Show loading indicator
+            StatusTextBlock.Text = "Rendering all pages...";
+            LoadingProgressBar.Visibility = Visibility.Visible;
+
+            try 
+            {
+                for (uint i = 0; i < _pdfDocument.PageCount; i++)
+                {
+                    using (var page = _pdfDocument.GetPage(i))
+                    {
+                        var renderOptions = new PdfPageRenderOptions
+                        {
+                            DestinationWidth = (uint)(page.Size.Width * _currentZoom * 2),
+                            DestinationHeight = (uint)(page.Size.Height * _currentZoom * 2)
+                        };
+
+                        using (var stream = new InMemoryRandomAccessStream())
+                        {
+                            await page.RenderToStreamAsync(stream, renderOptions);
+                            
+                            var bitmapImage = new BitmapImage();
+                            await bitmapImage.SetSourceAsync(stream);
+                            
+                            var image = new Image
+                            {
+                                Source = bitmapImage,
+                                Stretch = Stretch.Uniform,
+                                HorizontalAlignment = HorizontalAlignment.Center,
+                                Margin = new Thickness(0, 0, 0, 16)
+                            };
+                            
+                            ContinuousPageContainer.Children.Add(image);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusTextBlock.Text = $"Error rendering pages: {ex.Message}";
+            }
+            finally
+            {
+                LoadingProgressBar.Visibility = Visibility.Collapsed;
+                StatusTextBlock.Text = $"Loaded {_pdfDocument.PageCount} pages";
+            }
         }
 
         private void InkCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)

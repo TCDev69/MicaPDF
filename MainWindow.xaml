@@ -17,10 +17,10 @@
             
             <NavigationView.MenuItems>
                 <NavigationViewItem Icon="Document" Content="Viewer" Tag="viewer" IsSelected="True"/>
-                <NavigationViewItem Icon="OpenFile" Content="Open File" Tag="open"/>
+                <NavigationViewItem Icon="OpenFile" Content="Open File" Tag="open" SelectsOnInvoked="False"/>
                 <NavigationViewItemSeparator/>
                 <NavigationViewItemHeader x:Name="ZoomHeaderTextBlock" Content="Zoom: 50%"/>
-                <NavigationViewItem Tag="zoomin">
+                <NavigationViewItem x:Name="ZoomInItem" Tag="zoomin" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="ZoomIn"/>
                     </NavigationViewItem.Icon>
@@ -30,7 +30,7 @@
                         </StackPanel>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="zoomout">
+                <NavigationViewItem x:Name="ZoomOutItem" Tag="zoomout" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="ZoomOut"/>
                     </NavigationViewItem.Icon>
@@ -38,7 +38,7 @@
                         <TextBlock Text="Zoom Out"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="zoomreset">
+                <NavigationViewItem x:Name="ZoomResetItem" Tag="zoomreset" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE71E;"/>
                     </NavigationViewItem.Icon>
@@ -48,9 +48,9 @@
                 </NavigationViewItem>
                 <NavigationViewItemSeparator/>
                 <NavigationViewItemHeader x:Name="PageHeaderTextBlock" Content="Page 1 / 1"/>
-                <NavigationViewItem Icon="Next" Content="Next Page" Tag="nextpage"/>
-                <NavigationViewItem Icon="Previous" Content="Previous Page" Tag="prevpage"/>
-                <NavigationViewItem Tag="doublepagemode">
+                <NavigationViewItem Icon="Next" Content="Next Page" Tag="nextpage" SelectsOnInvoked="False"/>
+                <NavigationViewItem Icon="Previous" Content="Previous Page" Tag="prevpage" SelectsOnInvoked="False"/>
+                <NavigationViewItem Tag="doublepagemode" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE89A;"/>
                     </NavigationViewItem.Icon>
@@ -58,8 +58,16 @@
                         <TextBlock x:Name="DoublePageModeTextBlock" Text="Enable Double Page"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
+                <NavigationViewItem Tag="continuousmode" SelectsOnInvoked="False">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8D5;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:Name="ContinuousModeTextBlock" Text="Enable Continuous Scroll"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
                 <NavigationViewItemSeparator/>
-                <NavigationViewItem Tag="selectmode">
+                <NavigationViewItem Tag="selectmode" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE962;"/>
                     </NavigationViewItem.Icon>
@@ -67,7 +75,7 @@
                         <TextBlock Text="Select"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="penmode">
+                <NavigationViewItem Tag="penmode" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE76D;"/>
                     </NavigationViewItem.Icon>
@@ -75,7 +83,7 @@
                         <TextBlock Text="Pen"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="eraser">
+                <NavigationViewItem Tag="eraser" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE75C;"/>
                     </NavigationViewItem.Icon>
@@ -83,7 +91,7 @@
                         <TextBlock Text="Eraser"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="clearink">
+                <NavigationViewItem Tag="clearink" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE74D;"/>
                     </NavigationViewItem.Icon>
@@ -92,7 +100,7 @@
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItemSeparator/>
-                <NavigationViewItem Tag="savewithannotations">
+                <NavigationViewItem Tag="savewithannotations" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="Save"/>
                     </NavigationViewItem.Icon>
@@ -103,7 +111,7 @@
             </NavigationView.MenuItems>
 
             <NavigationView.PaneFooter>
-                <NavigationViewItem Content="Go to page..." Tag="gotopage" Margin="0,0,0,8" Tapped="GoToPageItem_Tapped">
+                <NavigationViewItem Content="Go to page..." Tag="gotopage" Margin="0,0,0,8" Tapped="GoToPageItem_Tapped" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8CB;"/>
                     </NavigationViewItem.Icon>
@@ -236,6 +244,13 @@
                                                    PointerReleased="InkCanvas_PointerReleased"/>
                                         </Grid>
                                     </StackPanel>
+                                    
+                                    <!-- Continuous view -->
+                                    <StackPanel x:Name="ContinuousPageContainer" 
+                                                Orientation="Vertical" 
+                                                Spacing="16"
+                                                Visibility="Collapsed"
+                                                HorizontalAlignment="Center"/>
                                 </Grid>
                             </ScrollViewer>
 
