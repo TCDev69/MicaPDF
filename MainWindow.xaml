@@ -16,11 +16,29 @@
                         Header="">
             
             <NavigationView.MenuItems>
-                <NavigationViewItem Icon="Document" Content="Viewer" Tag="viewer" IsSelected="True"/>
-                <NavigationViewItem Icon="OpenFile" Content="Open File" Tag="open" SelectsOnInvoked="False"/>
+                <!-- Group 1: File Operations -->
+                <NavigationViewItem Icon="OpenFile" Content="Open File" Tag="open"/>
+                <NavigationViewItem Tag="print">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Print"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="Print"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+                <NavigationViewItem Tag="savewithannotations">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Save"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="Save with Annotations"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+                
                 <NavigationViewItemSeparator/>
-                <NavigationViewItemHeader x:Name="ZoomHeaderTextBlock" Content="Zoom: 50%"/>
-                <NavigationViewItem x:Name="ZoomInItem" Tag="zoomin" SelectsOnInvoked="False">
+
+                <!-- Group 2: Zoom Controls -->
+                <NavigationViewItem x:Name="ZoomInItem" Tag="zoomin">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="ZoomIn"/>
                     </NavigationViewItem.Icon>
@@ -30,7 +48,7 @@
                         </StackPanel>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="ZoomOutItem" Tag="zoomout" SelectsOnInvoked="False">
+                <NavigationViewItem x:Name="ZoomOutItem" Tag="zoomout">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="ZoomOut"/>
                     </NavigationViewItem.Icon>
@@ -38,7 +56,7 @@
                         <TextBlock Text="Zoom Out"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="ZoomResetItem" Tag="zoomreset" SelectsOnInvoked="False">
+                <NavigationViewItem x:Name="ZoomResetItem" Tag="zoomreset">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE71E;"/>
                     </NavigationViewItem.Icon>
@@ -46,11 +64,27 @@
                         <TextBlock Text="Reset Zoom (50%)"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
+                <NavigationViewItem x:Name="ZoomFitItem" Tag="zoomfit">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE9A6;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="Fit Page"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+
                 <NavigationViewItemSeparator/>
+
+                <!-- Group 3: Navigation -->
                 <NavigationViewItemHeader x:Name="PageHeaderTextBlock" Content="Page 1 / 1"/>
-                <NavigationViewItem Icon="Next" Content="Next Page" Tag="nextpage" SelectsOnInvoked="False"/>
-                <NavigationViewItem Icon="Previous" Content="Previous Page" Tag="prevpage" SelectsOnInvoked="False"/>
-                <NavigationViewItem x:Name="DoublePageItem" Tag="doublepagemode" SelectsOnInvoked="False">
+                <NavigationViewItem Content="Go to page..." Tag="gotopage" Tapped="GoToPageItem_Tapped" x:Name="GoToPageItem">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8CB;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Icon="Next" Content="Next Page" Tag="nextpage"/>
+                <NavigationViewItem Icon="Previous" Content="Previous Page" Tag="prevpage"/>
+                <NavigationViewItem x:Name="DoublePageItem" Tag="doublepagemode">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE89A;"/>
                     </NavigationViewItem.Icon>
@@ -58,7 +92,7 @@
                         <TextBlock x:Name="DoublePageModeTextBlock" Text="Enable Double Page"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="coverpagemode" SelectsOnInvoked="False" Visibility="Collapsed" x:Name="CoverPageItem">
+                <NavigationViewItem Tag="coverpagemode" Visibility="Collapsed" x:Name="CoverPageItem">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE7ad;"/>
                     </NavigationViewItem.Icon>
@@ -66,16 +100,19 @@
                         <TextBlock x:Name="CoverPageModeTextBlock" Text="Cover Page: Off"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="continuousmode" SelectsOnInvoked="False">
+                <NavigationViewItem Tag="continuousmode">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE8D5;"/>
+                        <FontIcon Glyph="&#xF571;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
                         <TextBlock x:Name="ContinuousModeTextBlock" Text="Enable Continuous Scroll"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
+
                 <NavigationViewItemSeparator/>
-                <NavigationViewItem Tag="selectmode" SelectsOnInvoked="False">
+
+                <!-- Group 4: Tools -->
+                <NavigationViewItem Tag="selectmode">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE962;"/>
                     </NavigationViewItem.Icon>
@@ -83,7 +120,7 @@
                         <TextBlock Text="Select"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="penmode" SelectsOnInvoked="False">
+                <NavigationViewItem Tag="penmode">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE76D;"/>
                     </NavigationViewItem.Icon>
@@ -91,7 +128,7 @@
                         <TextBlock Text="Pen"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="eraser" SelectsOnInvoked="False">
+                <NavigationViewItem Tag="eraser">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE75C;"/>
                     </NavigationViewItem.Icon>
@@ -99,7 +136,7 @@
                         <TextBlock Text="Eraser"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="clearink" SelectsOnInvoked="False">
+                <NavigationViewItem Tag="clearink">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE74D;"/>
                     </NavigationViewItem.Icon>
@@ -107,23 +144,9 @@
                         <TextBlock Text="Clear All Annotations"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItemSeparator/>
-                <NavigationViewItem Tag="savewithannotations" SelectsOnInvoked="False">
-                    <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Save"/>
-                    </NavigationViewItem.Icon>
-                    <NavigationViewItem.Content>
-                        <TextBlock Text="Save with Annotations"/>
-                    </NavigationViewItem.Content>
-                </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <NavigationView.PaneFooter>
-                <NavigationViewItem Content="Go to page..." Tag="gotopage" Margin="0,0,0,8" Tapped="GoToPageItem_Tapped" SelectsOnInvoked="False">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE8CB;"/>
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
             </NavigationView.PaneFooter>
 
             <Grid>

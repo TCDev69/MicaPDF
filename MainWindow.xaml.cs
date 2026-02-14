@@ -46,6 +46,7 @@ namespace MicaPDF
         private bool _isDoublePageMode = false;
         private bool _isCoverPageMode = false;
         private bool _isContinuousMode = false;
+        private PrintHelper? _printHelper;
         private Polyline? _currentStroke;
         private bool _isDrawing = false;
 
@@ -295,6 +296,9 @@ namespace MicaPDF
                 case "zoomreset":
                     await ZoomReset();
                     break;
+                case "zoomfit":
+                    await ZoomFit();
+                    break;
                 case "prevpage":
                     await PreviousPage();
                     break;
@@ -327,6 +331,9 @@ namespace MicaPDF
                     break;
                 case "savewithannotations":
                     await SavePdfWithAnnotations();
+                    break;
+                case "print":
+                    await PrintPdf();
                     break;
             }
         }
@@ -456,7 +463,7 @@ namespace MicaPDF
                 _currentPageIndex = 0;
                 _currentZoom = 0.5;
                 ZoomLevelTextBlock.Text = "50%";
-                ZoomHeaderTextBlock.Content = "Zoom: 50%";
+                // ZoomHeaderTextBlock.Content = "Zoom: 50%";
                 FileNameTextBlock.Text = file.Name;
                 TitleBarFileName.Text = file.Name;
                 WelcomePanel.Visibility = Visibility.Collapsed;
@@ -719,7 +726,7 @@ namespace MicaPDF
             if (oldZoom == _currentZoom) return;
 
             ZoomLevelTextBlock.Text = $"{(_currentZoom * 100):F0}%";
-            ZoomHeaderTextBlock.Content = $"Zoom: {(_currentZoom * 100):F0}%";
+            // ZoomHeaderTextBlock.Content = $"Zoom: {(_currentZoom * 100):F0}%";
             
             if (_isContinuousMode)
             {
@@ -751,7 +758,7 @@ namespace MicaPDF
             if (oldZoom == _currentZoom) return;
 
             ZoomLevelTextBlock.Text = $"{(_currentZoom * 100):F0}%";
-            ZoomHeaderTextBlock.Content = $"Zoom: {(_currentZoom * 100):F0}%";
+            // ZoomHeaderTextBlock.Content = $"Zoom: {(_currentZoom * 100):F0}%";
             
             if (_isContinuousMode)
             {
@@ -782,7 +789,7 @@ namespace MicaPDF
             if (oldZoom == _currentZoom) return;
             
             ZoomLevelTextBlock.Text = "50%";
-            ZoomHeaderTextBlock.Content = "Zoom: 50%";
+            // ZoomHeaderTextBlock.Content = "Zoom: 50%";
             
             if (_isContinuousMode)
             {
@@ -797,6 +804,65 @@ namespace MicaPDF
             else
             {
                 await RenderCurrentPage();
+            }
+        }
+
+        private async System.Threading.Tasks.Task ZoomFit()
+        {
+            if (_pdfDocument == null || _pdfDocument.PageCount == 0) return;
+
+            // Get current page size
+            using (var page = _pdfDocument.GetPage(_currentPageIndex))
+            {
+                double pageWidth = page.Size.Width;
+                double pageHeight = page.Size.Height;
+                
+                // Calculate available space
+                // The viewport might be 0 if not rendered yet, so use ActualWidth/Height if Viewport is 0
+                double viewportWidth = PdfScrollViewer.ViewportWidth > 0 ? PdfScrollViewer.ViewportWidth : PdfScrollViewer.ActualWidth;
+                double viewportHeight = PdfScrollViewer.ViewportHeight > 0 ? PdfScrollViewer.ViewportHeight : PdfScrollViewer.ActualHeight;
+
+                if (viewportWidth == 0 || viewportHeight == 0) return;
+
+                double availableWidth = Math.Max(100, viewportWidth - 64);
+                double availableHeight = Math.Max(100, viewportHeight - 64);
+                
+                // Account for double page mode
+                if (_isDoublePageMode)
+                {
+                    pageWidth *= 2; // Treat as double width
+                }
+
+                // We render at page.Size * Zoom * 2
+                // So ImageWidth = pageWidth * Zoom * 2
+                // So Zoom = ImageWidth / (pageWidth * 2)
+                
+                double zoomX = availableWidth / (pageWidth * 2);
+                double zoomY = availableHeight / (pageHeight * 2);
+                
+                // Default to fitting the whole page
+                _currentZoom = Math.Min(zoomX, zoomY);
+                
+                // Clamp zoom level mainly to avoid issues
+                _currentZoom = Math.Max(0.1, Math.Min(_currentZoom, 5.0));
+
+                ZoomLevelTextBlock.Text = $"{(_currentZoom * 100):F0}%";
+                // ZoomHeaderTextBlock.Content = $"Zoom: {(_currentZoom * 100):F0}%";
+                
+                if (_isContinuousMode)
+                {
+                    // Capture relative scroll position
+                    double relativeV = PdfScrollViewer.VerticalOffset / PdfScrollViewer.ExtentHeight;
+                    
+                    await RenderAllPages();
+                    
+                    // Restore relative scroll position
+                    PdfScrollViewer.ChangeView(null, relativeV * PdfScrollViewer.ExtentHeight, null, true);
+                }
+                else
+                {
+                    await RenderCurrentPage();
+                }
             }
         }
 
@@ -1058,15 +1124,16 @@ namespace MicaPDF
                 // Disable double page mode if active
                 _isDoublePageMode = false;
                 
-                // Force zoom to 100% for continuous mode
-                _currentZoom = 1.0;
-                ZoomLevelTextBlock.Text = "100%";
-                ZoomHeaderTextBlock.Content = "Zoom: 100%";
+                // Force zoom to 50% for continuous mode
+                _currentZoom = 0.5;
+                ZoomLevelTextBlock.Text = "50%";
+                // ZoomHeaderTextBlock.Content = "Zoom: 50%";
                 
                 // Disable zoom controls and Double Page button
                 ZoomInItem.IsEnabled = false;
                 ZoomOutItem.IsEnabled = false;
                 ZoomResetItem.IsEnabled = false;
+                ZoomFitItem.IsEnabled = false;
                 DoublePageItem.IsEnabled = false;
 
                 // Switch to continuous view
@@ -1087,6 +1154,7 @@ namespace MicaPDF
                 ZoomInItem.IsEnabled = true;
                 ZoomOutItem.IsEnabled = true;
                 ZoomResetItem.IsEnabled = true;
+                ZoomFitItem.IsEnabled = true;
                 DoublePageItem.IsEnabled = true;
 
                 // Switch back to single page view
@@ -1249,6 +1317,31 @@ namespace MicaPDF
             foreach (var stroke in strokesToRemove)
             {
                 targetCanvas.Children.Remove(stroke);
+            }
+        }
+
+        private async Task PrintPdf()
+        {
+            if (_pdfDocument == null) return;
+            
+            // Clean up previous helper if exists
+            if (_printHelper != null)
+            {
+                _printHelper.Unregister();
+                _printHelper = null;
+            }
+            
+            try
+            {
+                // Create new helper for current document
+                _printHelper = new PrintHelper(this, _pdfDocument);
+                
+                // Show print UI
+                await _printHelper.ShowPrintUIAsync();
+            }
+            catch (Exception ex)
+            {
+                StatusTextBlock.Text = $"Print error: {ex.Message}";
             }
         }
 

@@ -5,7 +5,7 @@
   },
   "projects": {
     "C:\\Users\\TCDev\\Documents\\MicaPDF\\PDFViewer.csproj": {
-      "version": "1.0.0",
+      "version": "1.2.0",
       "restore": {
         "projectUniqueName": "C:\\Users\\TCDev\\Documents\\MicaPDF\\PDFViewer.csproj",
         "projectName": "MicaPDF",
@@ -43,6 +43,12 @@
         "net8.0-windows10.0.22621": {
           "targetAlias": "net8.0-windows10.0.22621.0",
           "dependencies": {
+            "Microsoft.NET.ILLink.Tasks": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[8.0.24, )",
+              "autoReferenced": true
+            },
             "Microsoft.Windows.SDK.BuildTools": {
               "target": "Package",
               "version": "[10.0.22621.3233, )"
