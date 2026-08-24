@@ -53,6 +53,7 @@
   "menu.edit": "Edit",
   "menu.clearink": "Clear annotations",
   "nav.page": "Page {0} / {1}",
+  "nav.pageLabeled": "Page {0} ({1}/{2})",
   "welcome.title": "MicaPDF",
   "welcome.subtitle": "Open a PDF, or drop one here",
   "welcome.browse": "Open PDF",

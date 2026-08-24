@@ -53,6 +53,7 @@
   "menu.edit": "Modifica",
   "menu.clearink": "Cancella annotazioni",
   "nav.page": "Pagina {0} / {1}",
+  "nav.pageLabeled": "Pagina {0} ({1}/{2})",
   "welcome.title": "MicaPDF",
   "welcome.subtitle": "Apri un PDF o trascinalo qui",
   "welcome.browse": "Apri PDF",

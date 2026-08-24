@@ -35,6 +35,7 @@ namespace MicaPDF
         }
 
         private PdfDocument? _pdfDocument;
+        private PdfPageLabels? _pageLabels;
         private uint _currentPageIndex;
         private double _currentZoom = 0.5;
         private MicaController? _micaController;
@@ -349,9 +350,65 @@ namespace MicaPDF
 
         private void UpdatePageHeaderText()
         {
-            var total = _pdfDocument?.PageCount ?? 1u;
-            var page = _pdfDocument == null ? 1u : _currentPageIndex + 1;
-            PageHeaderTextBlock.Content = Loc.Format("nav.page", page, total);
+            if (_pdfDocument == null)
+            {
+                PageHeaderTextBlock.Content = Loc.Format("nav.page", 1, 1);
+                return;
+            }
+
+            SetPageHeaderForIndices(_currentPageIndex, null, showLeft: true, showRight: false);
+        }
+
+        private void SetPageHeaderForIndices(uint leftIndex, uint? rightIndex, bool showLeft, bool showRight)
+        {
+            var total = _pdfDocument?.PageCount ?? 0u;
+            if (_pdfDocument == null || total == 0)
+            {
+                PageHeaderTextBlock.Content = Loc.Format("nav.page", 1, 1);
+                return;
+            }
+
+            var useLabels = _pageLabels is { IsIdentity: false };
+
+            if (rightIndex is uint right && showLeft && showRight && right < total)
+            {
+                var phys = $"{leftIndex + 1}-{right + 1}";
+                if (useLabels)
+                {
+                    var labels = $"{_pageLabels!.GetLabel(leftIndex)}-{_pageLabels.GetLabel(right)}";
+                    PageHeaderTextBlock.Content = Loc.Format("nav.pageLabeled", labels, phys, total);
+                }
+                else
+                {
+                    PageHeaderTextBlock.Content = Loc.Format("nav.page", phys, total);
+                }
+                return;
+            }
+
+            uint index;
+            if (!showLeft && showRight && rightIndex is uint r && r < total)
+                index = r;
+            else if (showLeft && leftIndex < total)
+                index = leftIndex;
+            else
+                index = _currentPageIndex;
+
+            if (index >= total)
+                index = 0;
+
+            var physical = index + 1;
+            if (useLabels)
+            {
+                PageHeaderTextBlock.Content = Loc.Format(
+                    "nav.pageLabeled",
+                    _pageLabels!.GetLabel(index),
+                    physical,
+                    total);
+            }
+            else
+            {
+                PageHeaderTextBlock.Content = Loc.Format("nav.page", physical, total);
+            }
         }
 
         private static void SetNavContent(NavigationViewItem item, string text)
@@ -878,6 +935,7 @@ namespace MicaPDF
                 _pageCache.Clear();
                 _annotations.Clear();
                 _history.Clear();
+                _pageLabels = await PdfPageLabels.LoadAsync(file, _pdfDocument.PageCount);
 
                 var sizes = new Dictionary<uint, Size>();
                 for (uint i = 0; i < _pdfDocument.PageCount; i++)
@@ -999,19 +1057,18 @@ namespace MicaPDF
                         PdfImageRight.Source = null;
                     }
 
-                    string text;
-                    if (!showLeft) text = $"{rightIndex + 1}";
-                    else if (rightIndex >= _pdfDocument.PageCount) text = $"{leftIndex + 1}";
-                    else text = $"{leftIndex + 1}-{rightIndex + 1}";
-
-                    PageHeaderTextBlock.Content = Loc.Format("nav.page", text, _pdfDocument.PageCount);
                     _currentPageIndex = showLeft ? leftIndex : rightIndex;
+                    SetPageHeaderForIndices(
+                        leftIndex,
+                        rightIndex < _pdfDocument.PageCount ? rightIndex : null,
+                        showLeft,
+                        showRight && rightIndex < _pdfDocument.PageCount);
                 }
                 else
                 {
                     PdfImage.Source = await RenderPageBitmapAsync(_currentPageIndex, true);
                     ConfigureOverlay(PdfAnnotationOverlay, _currentPageIndex);
-                    PageHeaderTextBlock.Content = Loc.Format("nav.page", _currentPageIndex + 1, _pdfDocument.PageCount);
+                    UpdatePageHeaderText();
                 }
             }
             catch (Exception ex)
@@ -1043,7 +1100,7 @@ namespace MicaPDF
             {
                 _currentPageIndex--;
                 ScrollToCurrentPage();
-                PageHeaderTextBlock.Content = Loc.Format("nav.page", _currentPageIndex + 1, _pdfDocument?.PageCount ?? 0);
+                UpdatePageHeaderText();
                 return;
             }
 
@@ -1076,7 +1133,7 @@ namespace MicaPDF
             {
                 _currentPageIndex++;
                 ScrollToCurrentPage();
-                PageHeaderTextBlock.Content = Loc.Format("nav.page", _currentPageIndex + 1, _pdfDocument.PageCount);
+                UpdatePageHeaderText();
                 return;
             }
 
@@ -1196,7 +1253,16 @@ namespace MicaPDF
             try
             {
                 PageNumberBox.Maximum = _pdfDocument.PageCount;
-                PageNumberBox.Value = _currentPageIndex + 1;
+                if (_pageLabels is { IsIdentity: false } labels &&
+                    uint.TryParse(labels.GetLabel(_currentPageIndex), out var logical) &&
+                    logical >= 1)
+                {
+                    PageNumberBox.Value = logical;
+                }
+                else
+                {
+                    PageNumberBox.Value = _currentPageIndex + 1;
+                }
                 GoToPageDialog.XamlRoot = Content.XamlRoot;
                 await GoToPageDialog.ShowAsync();
             }
@@ -1245,23 +1311,43 @@ namespace MicaPDF
                 PageNumberBox.Value = parsedValue;
             }
 
-            int offset = 0;
-            if (_currentFile != null)
-            {
-                var match = System.Text.RegularExpressions.Regex.Match(_currentFile.Name, @"_\+(\d+)");
-                if (match.Success && int.TryParse(match.Groups[1].Value, out var extractedOffset))
-                    offset = extractedOffset;
-            }
-
-            var targetPage = requestedValue + offset;
-            if (targetPage < 1 || targetPage > _pdfDocument.PageCount)
+            if (requestedValue < 1)
                 return;
 
-            _currentPageIndex = (uint)(targetPage - 1);
+            var requestedInt = (int)Math.Round(requestedValue);
+            var requestedLabel = requestedInt.ToString();
+
+            uint targetIndex;
+            if (_pageLabels is { IsIdentity: false } &&
+                _pageLabels.TryFindPageIndex(requestedLabel, out var labeledIndex))
+            {
+                targetIndex = labeledIndex;
+            }
+            else
+            {
+                int offset = 0;
+                if (_pageLabels == null && _currentFile != null)
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(_currentFile.Name, @"_\+(\d+)");
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out var extractedOffset))
+                        offset = extractedOffset;
+                }
+
+                var targetPage = requestedInt + offset;
+                if (targetPage < 1 || targetPage > _pdfDocument.PageCount)
+                    return;
+
+                targetIndex = (uint)(targetPage - 1);
+            }
+
+            if (targetIndex >= _pdfDocument.PageCount)
+                return;
+
+            _currentPageIndex = targetIndex;
             if (_isContinuousMode)
             {
                 ScrollToCurrentPage();
-                PageHeaderTextBlock.Content = Loc.Format("nav.page", _currentPageIndex + 1, _pdfDocument.PageCount);
+                UpdatePageHeaderText();
             }
             else
             {
@@ -1476,7 +1562,7 @@ namespace MicaPDF
                     });
                 }
 
-                PageHeaderTextBlock.Content = Loc.Format("nav.page", _currentPageIndex + 1, _pdfDocument.PageCount);
+                UpdatePageHeaderText();
                 await RenderVisibleContinuousPagesAsync();
                 ScrollToCurrentPage();
             }
@@ -1525,7 +1611,7 @@ namespace MicaPDF
                 if (center >= y && center < next)
                 {
                     _currentPageIndex = (uint)i;
-                    PageHeaderTextBlock.Content = Loc.Format("nav.page", _currentPageIndex + 1, _pdfDocument.PageCount);
+                    UpdatePageHeaderText();
                     break;
                 }
                 y = next;
