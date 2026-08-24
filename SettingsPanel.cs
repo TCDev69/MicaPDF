@@ -43,7 +43,6 @@ namespace MicaPDF
 
         public event EventHandler? SettingsApplied;
         public event EventHandler? CheckUpdatesRequested;
-        public event EventHandler? BackToPdfRequested;
 
         public SettingsPanel()
         {

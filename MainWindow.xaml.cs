@@ -34,8 +34,16 @@ namespace MicaPDF
             public bool Rendered;
         }
 
+        private sealed class OutlineTreeItem
+        {
+            public string Title { get; init; } = "";
+            public int? PageIndex { get; init; }
+            public override string ToString() => Title;
+        }
+
         private PdfDocument? _pdfDocument;
         private PdfPageLabels? _pageLabels;
+        private PdfOutline? _pdfOutline;
         private uint _currentPageIndex;
         private double _currentZoom = 0.5;
         private MicaController? _micaController;
@@ -86,7 +94,6 @@ namespace MicaPDF
                 ShowSettingsContent();
             };
             AppSettingsPanel.CheckUpdatesRequested += async (_, _) => await CheckForUpdatesAsync(forcePrompt: true);
-            AppSettingsPanel.BackToPdfRequested += (_, _) => ShowViewerContent();
             NavView.BackRequested += (_, _) => ShowViewerContent();
 
             if (Content is UIElement rootContent)
@@ -106,6 +113,7 @@ namespace MicaPDF
             try
             {
                 LoadNavigationPaneState();
+                ApplyOutlinePaneState();
                 NavView.PaneClosing += (_, _) => SaveNavigationPaneState(false);
                 NavView.PaneOpening += (_, _) => SaveNavigationPaneState(true);
             }
@@ -310,11 +318,12 @@ namespace MicaPDF
             SetNavContent(GoToPageItem, Loc.MenuTitle("gotopage"));
             SetNavContent(NextPageItem, Loc.MenuTitle("nextpage"));
             SetNavContent(PrevPageItem, Loc.MenuTitle("prevpage"));
+            SetNavContent(ContinuousItem, Loc.MenuTitle("continuousmode"));
+            SetNavContent(OutlineItem, Loc.MenuTitle("outline"));
             SetNavContent(EditItem, Loc.MenuTitle("edit"));
             SetNavContent(ClearInkItem, Loc.MenuTitle("clearink"));
             SetNavContent(DoublePageItem, Loc.MenuTitle("doublepagemode"));
             SetNavContent(CoverPageItem, Loc.MenuTitle("coverpagemode"));
-            SetNavContent(ContinuousItem, Loc.MenuTitle("continuousmode"));
 
             RefreshModeLabels();
             UpdatePageHeaderText();
@@ -329,6 +338,8 @@ namespace MicaPDF
             WelcomeTitleText.Text = Loc.Get("welcome.title");
             WelcomeSubtitleText.Text = Loc.Get("welcome.subtitle");
             WelcomeBrowseText.Text = Loc.Get("welcome.browse");
+            OutlineHeaderText.Text = Loc.Get("outline.header");
+            RefreshOutlineEmptyState();
             if (LoadingOverlay.Visibility != Visibility.Visible)
                 LoadingOverlayText.Text = Loc.Get("loading.pleaseWait");
 
@@ -346,6 +357,7 @@ namespace MicaPDF
             DoublePageItem.IsSelected = _isDoublePageMode;
             CoverPageItem.IsSelected = _isCoverPageMode;
             ContinuousItem.IsSelected = _isContinuousMode;
+            OutlineItem.IsSelected = OutlineSplitView.IsPaneOpen;
         }
 
         private void UpdatePageHeaderText()
@@ -538,6 +550,100 @@ namespace MicaPDF
             try { _settings.Save(); } catch { }
         }
 
+        private void ApplyOutlinePaneState()
+        {
+            OutlineSplitView.IsPaneOpen = _settings.OutlinePaneIsOpen;
+            OutlineItem.IsSelected = _settings.OutlinePaneIsOpen;
+        }
+
+        private void SaveOutlinePaneState(bool isOpen)
+        {
+            _settings.OutlinePaneIsOpen = isOpen;
+            try { _settings.Save(); } catch { }
+        }
+
+        private async Task ToggleOutlinePane()
+        {
+            if (_pdfDocument == null)
+            {
+                StatusTextBlock.Text = Loc.Get("status.noPdf");
+                return;
+            }
+
+            var open = !OutlineSplitView.IsPaneOpen;
+            OutlineSplitView.IsPaneOpen = open;
+            OutlineItem.IsSelected = open;
+            SaveOutlinePaneState(open);
+            RefreshOutlineEmptyState();
+            await Task.CompletedTask;
+        }
+
+        private void RefreshOutlineEmptyState()
+        {
+            var hasEntries = _pdfOutline?.HasEntries == true;
+            OutlineTreeView.Visibility = hasEntries ? Visibility.Visible : Visibility.Collapsed;
+            OutlineEmptyText.Visibility = hasEntries ? Visibility.Collapsed : Visibility.Visible;
+            OutlineEmptyText.Text = Loc.Get("outline.empty");
+        }
+
+        private async Task LoadOutlineAsync(StorageFile file)
+        {
+            _pdfOutline = await PdfOutline.LoadAsync(file);
+            OutlineTreeView.RootNodes.Clear();
+            if (_pdfOutline?.HasEntries == true)
+            {
+                foreach (var entry in _pdfOutline.Roots)
+                    OutlineTreeView.RootNodes.Add(CreateOutlineNode(entry));
+            }
+
+            RefreshOutlineEmptyState();
+        }
+
+        private static TreeViewNode CreateOutlineNode(PdfOutlineEntry entry)
+        {
+            var node = new TreeViewNode
+            {
+                Content = new OutlineTreeItem
+                {
+                    Title = entry.Title,
+                    PageIndex = entry.PageIndex
+                }
+            };
+
+            foreach (var child in entry.Children)
+                node.Children.Add(CreateOutlineNode(child));
+
+            return node;
+        }
+
+        private async void OutlineTreeView_ItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
+        {
+            if (args.InvokedItem is not TreeViewNode node ||
+                node.Content is not OutlineTreeItem item ||
+                item.PageIndex is not int pageIndex ||
+                pageIndex < 0)
+                return;
+
+            await GoToPageIndex((uint)pageIndex);
+        }
+
+        private async Task GoToPageIndex(uint targetIndex)
+        {
+            if (_pdfDocument == null || targetIndex >= _pdfDocument.PageCount)
+                return;
+
+            _currentPageIndex = targetIndex;
+            if (_isContinuousMode)
+            {
+                ScrollToCurrentPage();
+                UpdatePageHeaderText();
+            }
+            else
+            {
+                await RenderCurrentPage();
+            }
+        }
+
         private void ShowLoading(string message)
         {
             _loadingDepth++;
@@ -674,6 +780,9 @@ namespace MicaPDF
                     break;
                 case "continuousmode":
                     await ToggleContinuousMode();
+                    break;
+                case "outline":
+                    await ToggleOutlinePane();
                     break;
                 case "gotopage":
                     await ShowGoToPageDialog();
@@ -935,12 +1044,17 @@ namespace MicaPDF
                 _pageCache.Clear();
                 _annotations.Clear();
                 _history.Clear();
+                _pdfOutline = null;
+                OutlineTreeView.RootNodes.Clear();
+                RefreshOutlineEmptyState();
                 _pageLabels = await PdfPageLabels.LoadAsync(file, _pdfDocument.PageCount);
 
                 var sizes = new Dictionary<uint, Size>();
                 for (uint i = 0; i < _pdfDocument.PageCount; i++)
                     sizes[i] = GetPageSize(i);
                 _textIndex = await PdfTextIndex.LoadAsync(file, sizes);
+                await LoadOutlineAsync(file);
+                ApplyOutlinePaneState();
 
                 BindAnnotationOverlays();
                 SetToolMode(_currentTool);

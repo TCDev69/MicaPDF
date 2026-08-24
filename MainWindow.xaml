@@ -72,6 +72,14 @@
                 <NavigationViewItemSeparator x:Name="Sep2"/>
 
                 <NavigationViewItemHeader x:Name="PageHeaderTextBlock" Content="Page 1 / 1"/>
+                <NavigationViewItem x:Name="OutlineItem" Tag="outline">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8FD;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:Name="OutlineModeTextBlock" Text="Chapters"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
                 <NavigationViewItem x:Name="GoToPageItem" Content="Go to page..." Tag="gotopage">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8CB;"/>
@@ -154,6 +162,37 @@
                                 DragOver="ViewerPanel_DragOver"
                                 Drop="ViewerPanel_Drop">
 
+                            <SplitView x:Name="OutlineSplitView"
+                                       PanePlacement="Left"
+                                       OpenPaneLength="280"
+                                       CompactPaneLength="0"
+                                       DisplayMode="Inline"
+                                       IsPaneOpen="False">
+                                <SplitView.Pane>
+                                    <Grid Background="{ThemeResource LayerFillColorDefaultBrush}">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock x:Name="OutlineHeaderText"
+                                                   Grid.Row="0"
+                                                   Margin="16,12,16,8"
+                                                   FontWeight="SemiBold"
+                                                   Text="Chapters"/>
+                                        <Grid Grid.Row="1">
+                                            <TreeView x:Name="OutlineTreeView"
+                                                      SelectionMode="Single"
+                                                      ItemInvoked="OutlineTreeView_ItemInvoked"/>
+                                            <TextBlock x:Name="OutlineEmptyText"
+                                                       Margin="16"
+                                                       Opacity="0.7"
+                                                       TextWrapping="Wrap"
+                                                       VerticalAlignment="Top"
+                                                       Visibility="Collapsed"/>
+                                        </Grid>
+                                    </Grid>
+                                </SplitView.Pane>
+                                <SplitView.Content>
                             <Grid>
                                 <ScrollViewer x:Name="PdfScrollViewer"
                                             HorizontalScrollBarVisibility="Auto"
@@ -249,6 +288,8 @@
                                     </StackPanel>
                                 </Grid>
                             </Grid>
+                                </SplitView.Content>
+                            </SplitView>
                         </Border>
 
                         <Border x:Name="SettingsHost"

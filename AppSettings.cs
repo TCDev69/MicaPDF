@@ -42,7 +42,7 @@ namespace MicaPDF
         {
             "open", "print", "savewithannotations",
             "zoomin", "zoomout", "zoomreset", "zoomfit",
-            "gotopage", "nextpage", "prevpage", "doublepagemode", "coverpagemode", "continuousmode",
+            "outline", "gotopage", "nextpage", "prevpage", "doublepagemode", "coverpagemode", "continuousmode",
             "edit", "clearink"
         };
 
@@ -68,6 +68,7 @@ namespace MicaPDF
         public HashSet<string> HiddenMenuTags { get; } = new();
         public List<string> MenuOrder { get; } = new(DefaultMenuOrder);
         public bool NavPaneIsOpen { get; set; } = true;
+        public bool OutlinePaneIsOpen { get; set; }
         public bool HasShownDefaultReaderPrompt { get; set; }
 
         private static string StoreDirectory =>
@@ -128,6 +129,7 @@ namespace MicaPDF
                 if (!string.IsNullOrWhiteSpace(dto.ActivePenSlot))
                     settings.ActivePenSlot = dto.ActivePenSlot;
                 settings.NavPaneIsOpen = dto.NavPaneIsOpen;
+                settings.OutlinePaneIsOpen = dto.OutlinePaneIsOpen;
                 settings.HasShownDefaultReaderPrompt = dto.HasShownDefaultReaderPrompt;
                 settings.HiddenMenuTags.Clear();
                 foreach (var tag in dto.HiddenMenuTags ?? Array.Empty<string>())
@@ -160,6 +162,7 @@ namespace MicaPDF
                     }
                     settings.MenuOrder.Clear();
                     settings.MenuOrder.AddRange(parsed);
+                    EnsureOutlineBeforeGoToPage(settings.MenuOrder);
                 }
             }
             catch
@@ -168,6 +171,16 @@ namespace MicaPDF
             }
 
             return settings;
+        }
+
+        private static void EnsureOutlineBeforeGoToPage(List<string> order)
+        {
+            var outlineIdx = order.IndexOf("outline");
+            var gotoIdx = order.IndexOf("gotopage");
+            if (outlineIdx < 0 || gotoIdx < 0 || outlineIdx < gotoIdx)
+                return;
+            order.RemoveAt(outlineIdx);
+            order.Insert(gotoIdx, "outline");
         }
 
         public void Save()
@@ -194,6 +207,7 @@ namespace MicaPDF
                 HiddenMenuTags = HiddenMenuTags.ToArray(),
                 MenuOrder = MenuOrder.ToArray(),
                 NavPaneIsOpen = NavPaneIsOpen,
+                OutlinePaneIsOpen = OutlinePaneIsOpen,
                 HasShownDefaultReaderPrompt = HasShownDefaultReaderPrompt
             };
             File.WriteAllText(StorePath, JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = true }));
@@ -221,6 +235,7 @@ namespace MicaPDF
             public string[] HiddenMenuTags { get; set; } = Array.Empty<string>();
             public string[] MenuOrder { get; set; } = Array.Empty<string>();
             public bool NavPaneIsOpen { get; set; } = true;
+            public bool OutlinePaneIsOpen { get; set; }
             public bool HasShownDefaultReaderPrompt { get; set; }
         }
 

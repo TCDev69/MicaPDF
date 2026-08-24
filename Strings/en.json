@@ -1,4 +1,4 @@
-﻿{
+{
   "settings.title": "Settings",
   "settings.theme": "Theme",
   "settings.language": "Language",
@@ -50,6 +50,7 @@
   "menu.doublepagemode": "Double page",
   "menu.coverpagemode": "Cover page",
   "menu.continuousmode": "Continuous scroll",
+  "menu.outline": "Chapters",
   "menu.edit": "Edit",
   "menu.clearink": "Clear annotations",
   "nav.page": "Page {0} / {1}",
@@ -124,5 +125,7 @@
   "print.jobName": "MicaPDF Print Job",
   "update.repoMissing": "GitHub repository not configured (e.g. owner/repo).",
   "update.githubStatus": "GitHub responded with {0}.",
-  "export.readError": "This PDF cannot be read for export (it may be encrypted or use an unsupported structure). {0}"
+  "export.readError": "This PDF cannot be read for export (it may be encrypted or use an unsupported structure). {0}",
+  "outline.header": "Chapters",
+  "outline.empty": "This document has no table of contents."
 }

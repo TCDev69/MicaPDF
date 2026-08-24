@@ -1,4 +1,4 @@
-﻿{
+{
   "settings.title": "Impostazioni",
   "settings.theme": "Tema",
   "settings.language": "Lingua",
@@ -50,6 +50,7 @@
   "menu.doublepagemode": "Doppia pagina",
   "menu.coverpagemode": "Copertina",
   "menu.continuousmode": "Scorrimento continuo",
+  "menu.outline": "Capitoli",
   "menu.edit": "Modifica",
   "menu.clearink": "Cancella annotazioni",
   "nav.page": "Pagina {0} / {1}",
@@ -124,5 +125,7 @@
   "print.jobName": "Stampa MicaPDF",
   "update.repoMissing": "Repository GitHub non configurato (es. owner/repo).",
   "update.githubStatus": "GitHub ha risposto {0}.",
-  "export.readError": "Questo PDF non può essere letto per l'esportazione (potrebbe essere crittografato o avere una struttura non supportata). {0}"
+  "export.readError": "Questo PDF non può essere letto per l'esportazione (potrebbe essere crittografato o avere una struttura non supportata). {0}",
+  "outline.header": "Capitoli",
+  "outline.empty": "Questo documento non ha un indice."
 }
