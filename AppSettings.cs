@@ -40,7 +40,7 @@ namespace MicaPDF
 
         public static readonly string[] DefaultMenuOrder =
         {
-            "open", "print", "savewithannotations",
+            "open", "recentfiles", "print", "savewithannotations",
             "zoomin", "zoomout", "zoomreset", "zoomfit",
             "outline", "gotopage", "nextpage", "prevpage", "doublepagemode", "coverpagemode", "continuousmode",
             "edit", "clearink"
@@ -160,6 +160,11 @@ namespace MicaPDF
                         if (!parsed.Contains(tag))
                             parsed.Add(tag);
                     }
+
+                    parsed.Remove("recentfiles");
+                    var recentInsertIdx = parsed.IndexOf("open");
+                    parsed.Insert(recentInsertIdx >= 0 ? recentInsertIdx + 1 : 0, "recentfiles");
+
                     settings.MenuOrder.Clear();
                     settings.MenuOrder.AddRange(parsed);
                     EnsureOutlineBeforeGoToPage(settings.MenuOrder);

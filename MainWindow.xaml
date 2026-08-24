@@ -45,6 +45,14 @@
 
             <NavigationView.MenuItems>
                 <NavigationViewItem x:Name="OpenFileItem" Icon="OpenFile" Content="Open" Tag="open"/>
+                <NavigationViewItem x:Name="RecentFilesItem" Tag="recentfiles" SelectsOnInvoked="False">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE81C;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock x:Name="RecentFilesItemText" Text="Recent files"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
                 <NavigationViewItem x:Name="PrintItem" Icon="Print" Content="Print" Tag="print"/>
                 <NavigationViewItem x:Name="SaveItem" Icon="Save" Content="Save annotated PDF" Tag="savewithannotations"/>
 
@@ -256,36 +264,145 @@
                                                   Visibility="Collapsed"/>
 
                                 <Grid x:Name="WelcomePanel" Padding="48">
-                                    <StackPanel HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               Spacing="16"
-                                               MaxWidth="420">
-                                        <Viewbox Width="72" Height="72">
-                                            <SymbolIcon Symbol="Document"/>
-                                        </Viewbox>
-                                        <StackPanel Spacing="8" HorizontalAlignment="Center">
-                                            <TextBlock x:Name="WelcomeTitleText"
-                                                      FontSize="22"
-                                                      FontWeight="SemiBold"
-                                                      HorizontalAlignment="Center"
-                                                      TextWrapping="Wrap"/>
-                                            <TextBlock x:Name="WelcomeSubtitleText"
-                                                      FontSize="14"
-                                                      Opacity="0.7"
-                                                      TextAlignment="Center"
-                                                      TextWrapping="Wrap"
-                                                      MaxWidth="360"/>
-                                        </StackPanel>
-                                        <Button Click="OpenFileButton_Click"
-                                               HorizontalAlignment="Center"
-                                               Style="{StaticResource AccentButtonStyle}"
-                                               Padding="24,10">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <SymbolIcon Symbol="OpenFile"/>
-                                                <TextBlock x:Name="WelcomeBrowseText" FontSize="14"/>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <StackPanel HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Spacing="32"
+                                                   MaxWidth="960"
+                                                   MinWidth="320">
+                                            <StackPanel x:Name="WelcomeHeroPanel"
+                                                       Spacing="16"
+                                                       HorizontalAlignment="Center"
+                                                       MaxWidth="420">
+                                                <Viewbox Width="72" Height="72">
+                                                    <SymbolIcon Symbol="Document"/>
+                                                </Viewbox>
+                                                <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                                    <TextBlock x:Name="WelcomeTitleText"
+                                                              FontSize="22"
+                                                              FontWeight="SemiBold"
+                                                              HorizontalAlignment="Center"
+                                                              TextWrapping="Wrap"/>
+                                                    <TextBlock x:Name="WelcomeSubtitleText"
+                                                              FontSize="14"
+                                                              Opacity="0.7"
+                                                              TextAlignment="Center"
+                                                              TextWrapping="Wrap"
+                                                              MaxWidth="360"/>
+                                                </StackPanel>
+                                                <Button Click="OpenFileButton_Click"
+                                                       HorizontalAlignment="Center"
+                                                       Style="{StaticResource AccentButtonStyle}"
+                                                       Padding="24,10">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <SymbolIcon Symbol="OpenFile"/>
+                                                        <TextBlock x:Name="WelcomeBrowseText" FontSize="14"/>
+                                                    </StackPanel>
+                                                </Button>
                                             </StackPanel>
-                                        </Button>
-                                    </StackPanel>
+
+                                            <Grid x:Name="WelcomeCompactHeader"
+                                                  ColumnSpacing="24"
+                                                  Visibility="Collapsed">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Spacing="4" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="WelcomeCompactTitleText"
+                                                              FontSize="24"
+                                                              FontWeight="SemiBold"
+                                                              TextWrapping="Wrap"/>
+                                                    <TextBlock x:Name="WelcomeCompactSubtitleText"
+                                                              FontSize="13"
+                                                              Opacity="0.7"
+                                                              TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="1"
+                                                       Click="OpenFileButton_Click"
+                                                       VerticalAlignment="Center"
+                                                       Style="{StaticResource AccentButtonStyle}"
+                                                       Padding="20,10">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <SymbolIcon Symbol="OpenFile"/>
+                                                        <TextBlock x:Name="WelcomeCompactBrowseText" FontSize="14"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </Grid>
+
+                                            <StackPanel x:Name="RecentFilesSection"
+                                                       Spacing="16"
+                                                       Visibility="Collapsed">
+                                                <TextBlock x:Name="WelcomeRecentTitleText"
+                                                          FontSize="16"
+                                                          FontWeight="SemiBold"/>
+                                                <GridView x:Name="RecentFilesGrid"
+                                                         IsItemClickEnabled="True"
+                                                         SelectionMode="None"
+                                                         ItemClick="RecentFilesGrid_ItemClick">
+                                                    <GridView.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <ItemsWrapGrid Orientation="Horizontal"
+                                                                           MaximumRowsOrColumns="3"
+                                                                           ItemWidth="300"
+                                                                           ItemHeight="420"
+                                                                           HorizontalAlignment="Center"/>
+                                                        </ItemsPanelTemplate>
+                                                    </GridView.ItemsPanel>
+                                                    <GridView.ItemContainerStyle>
+                                                        <Style TargetType="GridViewItem">
+                                                            <Setter Property="Margin" Value="0"/>
+                                                            <Setter Property="Padding" Value="0"/>
+                                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                                                            <Setter Property="MinWidth" Value="0"/>
+                                                            <Setter Property="MinHeight" Value="0"/>
+                                                        </Style>
+                                                    </GridView.ItemContainerStyle>
+                                                    <GridView.ItemTemplate>
+                                                        <DataTemplate x:DataType="local:RecentFileDisplayItem">
+                                                            <Grid Width="280" Margin="0,0,0,4">
+                                                                <StackPanel Spacing="10">
+                                                                    <Border Height="340"
+                                                                            CornerRadius="8"
+                                                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                                            BorderThickness="1">
+                                                                        <Grid>
+                                                                            <Image Source="{x:Bind CoverImage}"
+                                                                                   Stretch="UniformToFill"
+                                                                                   Visibility="{x:Bind HasCover}"/>
+                                                                            <Viewbox Width="56"
+                                                                                     Height="56"
+                                                                                     HorizontalAlignment="Center"
+                                                                                     VerticalAlignment="Center"
+                                                                                     Visibility="{x:Bind NoCover}">
+                                                                                <SymbolIcon Symbol="Document"
+                                                                                           Opacity="0.45"/>
+                                                                            </Viewbox>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                    <StackPanel Spacing="4">
+                                                                        <TextBlock Text="{x:Bind FileName}"
+                                                                                  FontWeight="SemiBold"
+                                                                                  FontSize="14"
+                                                                                  TextTrimming="CharacterEllipsis"
+                                                                                  MaxLines="2"/>
+                                                                        <TextBlock Text="{x:Bind Subtitle}"
+                                                                                  Opacity="0.7"
+                                                                                  FontSize="12"
+                                                                                  TextTrimming="CharacterEllipsis"
+                                                                                  MaxLines="2"/>
+                                                                    </StackPanel>
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </GridView.ItemTemplate>
+                                                </GridView>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </ScrollViewer>
                                 </Grid>
                             </Grid>
                                 </SplitView.Content>

@@ -7,6 +7,8 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
@@ -75,6 +77,8 @@ namespace MicaPDF
         private readonly TextBlock StatusTextBlock = new();
         private readonly TextBlock FileNameTextBlock = new();
         private readonly TextBlock ZoomLevelTextBlock = new();
+        private RecentFilesStore _recentFiles = RecentFilesStore.Load();
+        private Microsoft.UI.Dispatching.DispatcherQueueTimer? _sessionSaveTimer;
 
         public MainWindow()
         {
@@ -133,6 +137,7 @@ namespace MicaPDF
 
         private async Task InitializeAsync()
         {
+            RefreshRecentFilesUi();
             await LoadFileFromCommandLine();
             if (_settings.AutoUpdate)
                 await CheckForUpdatesAsync(forcePrompt: false);
@@ -309,6 +314,8 @@ namespace MicaPDF
         private void RefreshLocalizedUi()
         {
             SetNavContent(OpenFileItem, Loc.MenuTitle("open"));
+            SetNavContent(RecentFilesItem, Loc.MenuTitle("recentfiles"));
+            RecentFilesItemText.Text = Loc.MenuTitle("recentfiles");
             SetNavContent(PrintItem, Loc.MenuTitle("print"));
             SetNavContent(SaveItem, Loc.MenuTitle("savewithannotations"));
             SetNavContent(ZoomInItem, Loc.MenuTitle("zoomin"));
@@ -338,6 +345,10 @@ namespace MicaPDF
             WelcomeTitleText.Text = Loc.Get("welcome.title");
             WelcomeSubtitleText.Text = Loc.Get("welcome.subtitle");
             WelcomeBrowseText.Text = Loc.Get("welcome.browse");
+            WelcomeCompactTitleText.Text = Loc.Get("welcome.title");
+            WelcomeCompactSubtitleText.Text = Loc.Get("welcome.subtitle");
+            WelcomeCompactBrowseText.Text = Loc.Get("welcome.browse");
+            WelcomeRecentTitleText.Text = Loc.Get("welcome.recentTitle");
             OutlineHeaderText.Text = Loc.Get("outline.header");
             RefreshOutlineEmptyState();
             if (LoadingOverlay.Visibility != Visibility.Visible)
@@ -350,6 +361,8 @@ namespace MicaPDF
                 AppSettingsPanel.LoadSettings(_settings);
             else
                 AppSettingsPanel.RefreshLocalizedUi();
+
+            RefreshRecentFilesUi();
         }
 
         private void RefreshModeLabels()
@@ -641,6 +654,8 @@ namespace MicaPDF
             {
                 await RenderCurrentPage();
             }
+
+            PersistCurrentSession();
         }
 
         private void ShowLoading(string message)
@@ -748,6 +763,16 @@ namespace MicaPDF
             // Any other menu action leaves settings and returns to the document.
             ShowViewerContent();
             var tag = args.InvokedItemContainer?.Tag?.ToString();
+            if (!string.IsNullOrEmpty(tag) &&
+                tag != "recentfiles" &&
+                !_menuItemsByTag.ContainsKey(tag) &&
+                Path.IsPathRooted(tag))
+            {
+                await OpenRecentFileAsync(tag);
+                RefreshModeLabels();
+                return;
+            }
+
             switch (tag)
             {
                 case "open":
@@ -901,6 +926,9 @@ namespace MicaPDF
 
         private async void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs e)
         {
+            PersistCurrentSession();
+            FlushRecentSave();
+
             if (_forceClose || !_annotations.HasAny())
                 return;
 
@@ -1001,6 +1029,126 @@ namespace MicaPDF
 
         private async void OpenFileButton_Click(object sender, RoutedEventArgs e) => await OpenFileDialog();
 
+        private async void RecentFilesGrid_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            if (e.ClickedItem is RecentFileDisplayItem item)
+                await OpenRecentFileAsync(item.Path);
+        }
+
+        private async Task OpenRecentFileAsync(string path)
+        {
+            try
+            {
+                var file = await StorageFile.GetFileFromPathAsync(path);
+                await LoadPdfFile(file, restoreSession: true);
+            }
+            catch
+            {
+                _recentFiles.Remove(path);
+                FlushRecentSave();
+                RefreshRecentFilesUi();
+                StatusTextBlock.Text = Loc.Format("status.recentMissing", Path.GetFileName(path));
+            }
+        }
+
+        private void PersistCurrentSession()
+        {
+            if (_currentFile?.Path is not { } path)
+                return;
+
+            _recentFiles.UpdateSession(path, _currentPageIndex, _currentZoom);
+            ScheduleRecentSave();
+        }
+
+        private void ScheduleRecentSave()
+        {
+            _sessionSaveTimer ??= DispatcherQueue.CreateTimer();
+            _sessionSaveTimer.Interval = TimeSpan.FromSeconds(1);
+            _sessionSaveTimer.IsRepeating = false;
+            if (_sessionSaveTimer.IsRunning)
+                return;
+            _sessionSaveTimer.Tick -= SessionSaveTimer_Tick;
+            _sessionSaveTimer.Tick += SessionSaveTimer_Tick;
+            _sessionSaveTimer.Start();
+        }
+
+        private void SessionSaveTimer_Tick(Microsoft.UI.Dispatching.DispatcherQueueTimer sender, object args)
+        {
+            sender.Stop();
+            FlushRecentSave();
+        }
+
+        private void FlushRecentSave() => _recentFiles.Save();
+
+        private void RefreshRecentFilesUi()
+        {
+            RefreshRecentFilesMenu();
+
+            var items = new List<RecentFileDisplayItem>();
+            foreach (var entry in _recentFiles.GetEntries())
+            {
+                if (!File.Exists(entry.Path))
+                    continue;
+
+                var date = entry.LastOpenedUtc.ToLocalTime().ToString("g", CultureInfo.CurrentUICulture);
+                var page = Loc.Format("welcome.recentPage", entry.PageIndex + 1);
+                var zoom = $"{(entry.Zoom * 100):F0}%";
+                BitmapImage? cover = null;
+                var coverPath = _recentFiles.GetCoverPath(entry);
+                if (coverPath != null)
+                {
+                    cover = new BitmapImage(new Uri(coverPath)) { DecodePixelWidth = 1120 };
+                }
+
+                items.Add(new RecentFileDisplayItem
+                {
+                    Path = entry.Path,
+                    FileName = Path.GetFileName(entry.Path),
+                    Subtitle = $"{date} · {page} · {zoom}",
+                    CoverImage = cover
+                });
+            }
+
+            var hasRecents = items.Count > 0;
+            WelcomeHeroPanel.Visibility = hasRecents ? Visibility.Collapsed : Visibility.Visible;
+            WelcomeCompactHeader.Visibility = hasRecents ? Visibility.Visible : Visibility.Collapsed;
+            RecentFilesSection.Visibility = hasRecents ? Visibility.Visible : Visibility.Collapsed;
+            RecentFilesGrid.ItemsSource = items;
+        }
+
+        private void RefreshRecentFilesMenu()
+        {
+            RecentFilesItem.MenuItems.Clear();
+            var entries = _recentFiles.GetEntries().Where(e => File.Exists(e.Path)).Take(RecentFilesStore.MaxEntries).ToList();
+            if (entries.Count == 0)
+            {
+                RecentFilesItem.MenuItems.Add(new NavigationViewItem
+                {
+                    Content = Loc.Get("welcome.recentEmpty"),
+                    IsEnabled = false
+                });
+                return;
+            }
+
+            foreach (var entry in entries)
+            {
+                RecentFilesItem.MenuItems.Add(new NavigationViewItem
+                {
+                    Content = Path.GetFileName(entry.Path),
+                    Tag = entry.Path
+                });
+            }
+        }
+
+        private async Task EnsureCoverAndRefreshAsync()
+        {
+            if (_pdfDocument == null || _currentFile?.Path is not { } path)
+                return;
+
+            await RecentFilesStore.EnsureCoverAsync(_pdfDocument, path);
+            RefreshRecentFilesUi();
+        }
+
         private async Task OpenFileDialog()
         {
             try
@@ -1019,8 +1167,13 @@ namespace MicaPDF
             }
         }
 
-        private async Task LoadPdfFile(StorageFile file)
+        private async Task LoadPdfFile(StorageFile file, bool restoreSession = true)
         {
+            PersistCurrentSession();
+            FlushRecentSave();
+
+            var recentEntry = restoreSession ? _recentFiles.Find(file.Path) : null;
+
             ShowLoading(Loc.Get("loading.opening"));
             try
             {
@@ -1034,9 +1187,18 @@ namespace MicaPDF
                 }
 
                 _currentFile = file;
-                _currentPageIndex = 0;
-                _currentZoom = 0.5;
-                ZoomLevelTextBlock.Text = "50%";
+                if (recentEntry != null)
+                {
+                    _currentPageIndex = Math.Min(recentEntry.PageIndex, _pdfDocument.PageCount - 1);
+                    _currentZoom = Math.Clamp(recentEntry.Zoom, 0.25, 5.0);
+                }
+                else
+                {
+                    _currentPageIndex = 0;
+                    _currentZoom = 0.5;
+                }
+
+                ZoomLevelTextBlock.Text = $"{(_currentZoom * 100):F0}%";
                 FileNameTextBlock.Text = file.Name;
                 TitleBarFileName.Text = file.Name;
                 WelcomePanel.Visibility = Visibility.Collapsed;
@@ -1063,9 +1225,20 @@ namespace MicaPDF
                 SetToolMode(_currentTool);
 
                 if (_isContinuousMode)
+                {
                     await BuildContinuousLayoutAsync();
+                    if (recentEntry != null)
+                        ScrollToCurrentPage();
+                }
                 else
+                {
                     await RenderCurrentPage();
+                }
+
+                _recentFiles.RecordOpened(file.Path, _currentPageIndex, _currentZoom);
+                FlushRecentSave();
+                RefreshRecentFilesUi();
+                _ = EnsureCoverAndRefreshAsync();
 
                 StatusTextBlock.Text = Loc.Format("status.fileLoaded", file.Name);
             }
@@ -1218,6 +1391,7 @@ namespace MicaPDF
                 _currentPageIndex--;
                 ScrollToCurrentPage();
                 UpdatePageHeaderText();
+                PersistCurrentSession();
                 return;
             }
 
@@ -1240,6 +1414,7 @@ namespace MicaPDF
             }
 
             await RenderCurrentPage();
+            PersistCurrentSession();
         }
 
         private async Task NextPage()
@@ -1251,6 +1426,7 @@ namespace MicaPDF
                 _currentPageIndex++;
                 ScrollToCurrentPage();
                 UpdatePageHeaderText();
+                PersistCurrentSession();
                 return;
             }
 
@@ -1272,6 +1448,7 @@ namespace MicaPDF
             }
 
             await RenderCurrentPage();
+            PersistCurrentSession();
         }
 
         private async Task ZoomIn()
@@ -1341,6 +1518,8 @@ namespace MicaPDF
             {
                 await RenderCurrentPage();
             }
+
+            PersistCurrentSession();
         }
 
         private void ViewerPanel_DragOver(object sender, DragEventArgs e)
@@ -1470,6 +1649,8 @@ namespace MicaPDF
             {
                 await RenderCurrentPage();
             }
+
+            PersistCurrentSession();
         }
 
         private void SetToolMode(AnnotationTool mode)
@@ -1729,6 +1910,7 @@ namespace MicaPDF
                 {
                     _currentPageIndex = (uint)i;
                     UpdatePageHeaderText();
+                    PersistCurrentSession();
                     break;
                 }
                 y = next;
