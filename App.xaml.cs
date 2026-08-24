@@ -1,7 +1,6 @@
 using Microsoft.UI.Xaml;
 using System;
-using System.Linq;
-using Windows.Storage;
+using System.IO;
 
 namespace MicaPDF
 {
@@ -18,11 +17,9 @@ namespace MicaPDF
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            // Check for command line arguments
             var commandLineArgs = Environment.GetCommandLineArgs();
             if (commandLineArgs.Length > 1)
             {
-                // The first argument is the executable path, second is the file to open
                 var filePath = commandLineArgs[1];
                 if (System.IO.File.Exists(filePath) && filePath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
                 {
@@ -39,7 +36,10 @@ namespace MicaPDF
             try
             {
                 AppContext.SetSwitch("System.Runtime.TieredCompilation", false);
-                var cachePath = ApplicationData.Current.LocalCacheFolder.Path;
+                var cachePath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "MicaPDF");
+                Directory.CreateDirectory(cachePath);
                 System.Runtime.ProfileOptimization.SetProfileRoot(cachePath);
                 System.Runtime.ProfileOptimization.StartProfile("startup.profile");
             }

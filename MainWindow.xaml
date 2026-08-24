@@ -2,23 +2,50 @@
     x:Class="MicaPDF.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MicaPDF"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid>
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="32"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="TitleBarHost" Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="48"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="140"/>
+            </Grid.ColumnDefinitions>
+            <Border x:Name="TitleBarDragElement"
+                    Grid.Column="1"
+                    Background="Transparent"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"/>
+            <TextBlock x:Name="TitleBarFileName"
+                       Grid.Column="1"
+                       Text=""
+                       FontSize="12"
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center"
+                       Opacity="0.8"
+                       IsHitTestVisible="False"/>
+        </Grid>
+
         <NavigationView x:Name="NavView"
+                        Grid.Row="1"
                         IsBackButtonVisible="Collapsed"
-                        IsSettingsVisible="False"
+                        IsSettingsVisible="True"
                         PaneDisplayMode="Left"
                         OpenPaneLength="280"
                         IsPaneToggleButtonVisible="True"
                         Header="">
-            
+
             <NavigationView.MenuItems>
-                <!-- Group 1: File Operations -->
-                <NavigationViewItem Icon="OpenFile" Content="Open File" Tag="open"/>
-                <NavigationViewItem Tag="print">
+                <NavigationViewItem x:Name="OpenFileItem" Icon="OpenFile" Content="Open File" Tag="open"/>
+                <NavigationViewItem x:Name="PrintItem" Tag="print">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="Print"/>
                     </NavigationViewItem.Icon>
@@ -26,7 +53,7 @@
                         <TextBlock Text="Print"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="savewithannotations">
+                <NavigationViewItem x:Name="SaveItem" Tag="savewithannotations">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="Save"/>
                     </NavigationViewItem.Icon>
@@ -34,18 +61,15 @@
                         <TextBlock Text="Save with Annotations"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                
-                <NavigationViewItemSeparator/>
 
-                <!-- Group 2: Zoom Controls -->
+                <NavigationViewItemSeparator x:Name="Sep1"/>
+
                 <NavigationViewItem x:Name="ZoomInItem" Tag="zoomin">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="ZoomIn"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="Zoom In" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="Zoom In" VerticalAlignment="Center"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItem x:Name="ZoomOutItem" Tag="zoomout">
@@ -73,17 +97,16 @@
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
 
-                <NavigationViewItemSeparator/>
+                <NavigationViewItemSeparator x:Name="Sep2"/>
 
-                <!-- Group 3: Navigation -->
                 <NavigationViewItemHeader x:Name="PageHeaderTextBlock" Content="Page 1 / 1"/>
-                <NavigationViewItem Content="Go to page..." Tag="gotopage" Tapped="GoToPageItem_Tapped" x:Name="GoToPageItem">
+                <NavigationViewItem x:Name="GoToPageItem" Content="Go to page..." Tag="gotopage">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8CB;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Icon="Next" Content="Next Page" Tag="nextpage"/>
-                <NavigationViewItem Icon="Previous" Content="Previous Page" Tag="prevpage"/>
+                <NavigationViewItem x:Name="NextPageItem" Icon="Next" Content="Next Page" Tag="nextpage"/>
+                <NavigationViewItem x:Name="PrevPageItem" Icon="Previous" Content="Previous Page" Tag="prevpage"/>
                 <NavigationViewItem x:Name="DoublePageItem" Tag="doublepagemode">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE89A;"/>
@@ -92,7 +115,7 @@
                         <TextBlock x:Name="DoublePageModeTextBlock" Text="Enable Double Page"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="coverpagemode" Visibility="Collapsed" x:Name="CoverPageItem">
+                <NavigationViewItem x:Name="CoverPageItem" Tag="coverpagemode" Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE7ad;"/>
                     </NavigationViewItem.Icon>
@@ -100,7 +123,7 @@
                         <TextBlock x:Name="CoverPageModeTextBlock" Text="Cover Page: Off"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="continuousmode">
+                <NavigationViewItem x:Name="ContinuousItem" Tag="continuousmode">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xF571;"/>
                     </NavigationViewItem.Icon>
@@ -109,34 +132,17 @@
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
 
-                <NavigationViewItemSeparator/>
+                <NavigationViewItemSeparator x:Name="Sep3"/>
 
-                <!-- Group 4: Tools -->
-                <NavigationViewItem Tag="selectmode">
+                <NavigationViewItem x:Name="EditItem" Tag="edit">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE962;"/>
+                        <FontIcon Glyph="&#xE70F;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock Text="Select"/>
+                        <TextBlock Text="Edit"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
-                <NavigationViewItem Tag="penmode">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE76D;"/>
-                    </NavigationViewItem.Icon>
-                    <NavigationViewItem.Content>
-                        <TextBlock Text="Pen"/>
-                    </NavigationViewItem.Content>
-                </NavigationViewItem>
-                <NavigationViewItem Tag="eraser">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE75C;"/>
-                    </NavigationViewItem.Icon>
-                    <NavigationViewItem.Content>
-                        <TextBlock Text="Eraser"/>
-                    </NavigationViewItem.Content>
-                </NavigationViewItem>
-                <NavigationViewItem Tag="clearink">
+                <NavigationViewItem x:Name="ClearInkItem" Tag="clearink">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE74D;"/>
                     </NavigationViewItem.Icon>
@@ -146,11 +152,7 @@
                 </NavigationViewItem>
             </NavigationView.MenuItems>
 
-            <NavigationView.PaneFooter>
-            </NavigationView.PaneFooter>
-
-            <Grid>
-                <!-- Dialog for go to page -->
+            <Grid x:Name="NavContentRoot" FlowDirection="LeftToRight">
                 <ContentDialog x:Name="GoToPageDialog"
                               Title="Go to page"
                               PrimaryButtonText="Go"
@@ -159,7 +161,7 @@
                               PrimaryButtonClick="GoToPageDialog_PrimaryButtonClick">
                     <StackPanel Spacing="12">
                         <TextBlock Text="Enter the page number:" TextWrapping="Wrap"/>
-                        <NumberBox x:Name="PageNumberBox" 
+                        <NumberBox x:Name="PageNumberBox"
                                   PlaceholderText="Page number"
                                   SpinButtonPlacementMode="Hidden"
                                   Minimum="1"
@@ -170,243 +172,145 @@
                     </StackPanel>
                 </ContentDialog>
 
-                <!-- Hidden elements for code -->
                 <StackPanel Visibility="Collapsed">
                     <TextBlock x:Name="FileNameTextBlock"/>
                     <TextBlock x:Name="StatusTextBlock"/>
                     <TextBlock x:Name="PageInfoTextBlock"/>
                     <TextBlock x:Name="ZoomLevelTextBlock"/>
                 </StackPanel>
-                
-                <!-- Area contenuto principale -->
+
                 <Grid>
-                    <!-- Spazio per titlebar -->
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="24"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    
-                    <!-- Nome file nella titlebar -->
-                    <TextBlock x:Name="TitleBarFileName"
-                              Grid.Row="0"
-                              Text=""
-                              FontSize="12"
-                              VerticalAlignment="Center"
-                              HorizontalAlignment="Center"
-                              Opacity="0.8"
-                              Margin="48,0"/>
-                    
-                    <!-- Visualizzatore PDF -->
-                    <Border x:Name="ViewerPanel" 
-                            Grid.Row="1"
-                            Background="{ThemeResource LayerFillColorDefaultBrush}"
-                            CornerRadius="8"
-                            Margin="8"
-                            AllowDrop="True"
-                            DragOver="ViewerPanel_DragOver"
-                            Drop="ViewerPanel_Drop">
-                        
-                        <Grid>
-                            <ScrollViewer x:Name="PdfScrollViewer"
-                                        HorizontalScrollBarVisibility="Auto"
-                                        VerticalScrollBarVisibility="Auto"
-                                        ZoomMode="Enabled"
-                                        MinZoomFactor="0.5"
-                                        MaxZoomFactor="5.0"
-                                        HorizontalScrollMode="Enabled"
-                                        VerticalScrollMode="Enabled"
-                                        IsHorizontalRailEnabled="False"
-                                        IsVerticalRailEnabled="False"
-                                        ManipulationMode="All">
-                                <Grid x:Name="PdfContainer" 
-                                      HorizontalAlignment="Center" 
-                                      VerticalAlignment="Center"
-                                      Padding="32">
-                                    
-                                    <!-- Single page view -->
-                                    <Grid x:Name="SinglePageContainer">
-                                        <Image x:Name="PdfImage" 
-                                               Stretch="Uniform"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                        
-                                        <!-- Canvas for pen drawing overlay -->
-                                        <Canvas x:Name="PdfInkCanvas"
-                                               HorizontalAlignment="Stretch"
-                                               VerticalAlignment="Stretch"
-                                               Background="Transparent"
-                                               PointerPressed="InkCanvas_PointerPressed"
-                                               PointerMoved="InkCanvas_PointerMoved"
-                                               PointerReleased="InkCanvas_PointerReleased"/>
-                                    </Grid>
-                                    
-                                    <!-- Double page view -->
-                                    <StackPanel x:Name="DoublePageContainer" 
-                                                Orientation="Horizontal" 
-                                                Spacing="16"
-                                                Visibility="Collapsed">
-                                        <Grid>
-                                            <Image x:Name="PdfImageLeft" 
+                        <Border x:Name="ViewerPanel"
+                                FlowDirection="LeftToRight"
+                                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                CornerRadius="8"
+                                Margin="8"
+                                AllowDrop="True"
+                                DragOver="ViewerPanel_DragOver"
+                                Drop="ViewerPanel_Drop">
+
+                            <Grid>
+                                <ScrollViewer x:Name="PdfScrollViewer"
+                                            HorizontalScrollBarVisibility="Auto"
+                                            VerticalScrollBarVisibility="Auto"
+                                            ZoomMode="Enabled"
+                                            MinZoomFactor="0.5"
+                                            MaxZoomFactor="5.0"
+                                            HorizontalScrollMode="Enabled"
+                                            VerticalScrollMode="Enabled"
+                                            IsHorizontalRailEnabled="True"
+                                            IsVerticalRailEnabled="True"
+                                            ManipulationMode="System"
+                                            PointerWheelChanged="PdfScrollViewer_PointerWheelChanged"
+                                            ViewChanged="PdfScrollViewer_ViewChanged">
+                                    <Grid x:Name="PdfContainer"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Top"
+                                          Padding="32">
+
+                                        <Grid x:Name="SinglePageContainer" HorizontalAlignment="Center">
+                                            <Image x:Name="PdfImage"
                                                    Stretch="Uniform"
                                                    HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"/>
-                                            
-                                            <Canvas x:Name="PdfInkCanvasLeft"
-                                                   HorizontalAlignment="Stretch"
-                                                   VerticalAlignment="Stretch"
-                                                   Background="Transparent"
-                                                   PointerPressed="InkCanvas_PointerPressed"
-                                                   PointerMoved="InkCanvas_PointerMoved"
-                                                   PointerReleased="InkCanvas_PointerReleased"/>
+                                                   VerticalAlignment="Center"
+                                                   SizeChanged="PageImage_SizeChanged"/>
+                                            <local:AnnotationOverlay x:Name="PdfAnnotationOverlay"/>
                                         </Grid>
-                                        
-                                        <Grid>
-                                            <Image x:Name="PdfImageRight" 
-                                                   Stretch="Uniform"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"/>
-                                            
-                                            <Canvas x:Name="PdfInkCanvasRight"
-                                                   HorizontalAlignment="Stretch"
-                                                   VerticalAlignment="Stretch"
-                                                   Background="Transparent"
-                                                   PointerPressed="InkCanvas_PointerPressed"
-                                                   PointerMoved="InkCanvas_PointerMoved"
-                                                   PointerReleased="InkCanvas_PointerReleased"/>
-                                        </Grid>
-                                    </StackPanel>
-                                    
-                                    <!-- Continuous view -->
-                                    <StackPanel x:Name="ContinuousPageContainer" 
-                                                Orientation="Vertical" 
-                                                Spacing="16"
-                                                Visibility="Collapsed"
-                                                HorizontalAlignment="Center"/>
-                                </Grid>
-                            </ScrollViewer>
 
-                            <!-- Welcome screen stile Store -->
-                            <Grid x:Name="WelcomePanel" Padding="48">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-
-                                <StackPanel Grid.Row="1" 
-                                           HorizontalAlignment="Center" 
-                                           VerticalAlignment="Center"
-                                           Spacing="24"
-                                           MaxWidth="600">
-                                    
-                                    <!-- Icona hero -->
-                                    <Viewbox Width="120" Height="120">
-                                        <SymbolIcon Symbol="Document"/>
-                                    </Viewbox>
-
-                                    <!-- Titolo e descrizione -->
-                                    <StackPanel Spacing="12" HorizontalAlignment="Center">
-                                        <TextBlock Text="Welcome to MicaPDF" 
-                                                  FontSize="28" 
-                                                  FontWeight="Bold"
-                                                  HorizontalAlignment="Center"
-                                                  TextWrapping="Wrap"/>
-                                        <TextBlock Text="Open a document to start viewing with modern interface and translucent Mica background" 
-                                                  FontSize="14" 
-                                                  Opacity="0.7"
-                                                  TextAlignment="Center"
-                                                  TextWrapping="Wrap"
-                                                  MaxWidth="400"/>
-                                    </StackPanel>
-
-                                    <!-- Pulsante azione principale -->
-                                    <Button Click="OpenFileButton_Click"
-                                           HorizontalAlignment="Center"
-                                           Style="{StaticResource AccentButtonStyle}"
-                                           Padding="32,12">
-                                        <StackPanel Orientation="Horizontal" Spacing="12">
-                                            <SymbolIcon Symbol="OpenFile"/>
-                                            <TextBlock Text="Browse and open a PDF" FontSize="16"/>
+                                        <StackPanel x:Name="DoublePageContainer"
+                                                    Orientation="Horizontal"
+                                                    Spacing="16"
+                                                    Visibility="Collapsed"
+                                                    HorizontalAlignment="Center">
+                                            <Grid>
+                                                <Image x:Name="PdfImageLeft"
+                                                       Stretch="Uniform"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       SizeChanged="PageImage_SizeChanged"/>
+                                                <local:AnnotationOverlay x:Name="PdfAnnotationOverlayLeft"/>
+                                            </Grid>
+                                            <Grid>
+                                                <Image x:Name="PdfImageRight"
+                                                       Stretch="Uniform"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       SizeChanged="PageImage_SizeChanged"/>
+                                                <local:AnnotationOverlay x:Name="PdfAnnotationOverlayRight"/>
+                                            </Grid>
                                         </StackPanel>
-                                    </Button>
 
-                                    <!-- Loading bar -->
-                                    <ProgressBar x:Name="LoadingProgressBar"
-                                                IsIndeterminate="True"
-                                                Visibility="Collapsed"
-                                                Margin="0,8,0,0"/>
-
-                                    <!-- Feature cards -->
-                                    <Grid Margin="0,32,0,0" ColumnSpacing="16" RowSpacing="16">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- Card 1 -->
-                                        <Border Grid.Column="0" 
-                                               Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                               CornerRadius="8"
-                                               Padding="16"
-                                               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                               BorderThickness="1">
-                                            <StackPanel Spacing="8" HorizontalAlignment="Center">
-                                                <SymbolIcon Symbol="View" Width="32" Height="32" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="High Quality" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="High-definition rendering" 
-                                                          FontSize="12" 
-                                                          Opacity="0.7"
-                                                          TextWrapping="Wrap"
-                                                          TextAlignment="Center"
-                                                          HorizontalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Card 2 -->
-                                        <Border Grid.Column="1" 
-                                               Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                               CornerRadius="8"
-                                               Padding="16"
-                                               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                               BorderThickness="1">
-                                            <StackPanel Spacing="8" HorizontalAlignment="Center">
-                                                <SymbolIcon Symbol="ZoomIn" Width="32" Height="32" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="Advanced Zoom" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="Up to 500% magnification" 
-                                                          FontSize="12" 
-                                                          Opacity="0.7"
-                                                          TextWrapping="Wrap"
-                                                          TextAlignment="Center"
-                                                          HorizontalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Card 3 -->
-                                        <Border Grid.Column="2" 
-                                               Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                               CornerRadius="8"
-                                               Padding="16"
-                                               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                               BorderThickness="1">
-                                            <StackPanel Spacing="8" HorizontalAlignment="Center">
-                                                <FontIcon Glyph="&#xE91B;" FontSize="32" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="Mica Design" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                                                <TextBlock Text="Modern translucent background" 
-                                                          FontSize="12" 
-                                                          Opacity="0.7"
-                                                          TextWrapping="Wrap"
-                                                          TextAlignment="Center"
-                                                          HorizontalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Border>
+                                        <StackPanel x:Name="ContinuousPageContainer"
+                                                    Orientation="Vertical"
+                                                    Spacing="16"
+                                                    Visibility="Collapsed"
+                                                    HorizontalAlignment="Center"/>
                                     </Grid>
-                                </StackPanel>
+                                </ScrollViewer>
+
+                                <local:InkToolBar x:Name="AnnotationToolbar"
+                                                  Visibility="Collapsed"/>
+
+                                <Grid x:Name="WelcomePanel" Padding="48">
+                                    <StackPanel HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Spacing="24"
+                                               MaxWidth="600">
+                                        <Viewbox Width="120" Height="120">
+                                            <SymbolIcon Symbol="Document"/>
+                                        </Viewbox>
+                                        <StackPanel Spacing="12" HorizontalAlignment="Center">
+                                            <TextBlock x:Name="WelcomeTitleText"
+                                                      FontSize="28"
+                                                      FontWeight="Bold"
+                                                      HorizontalAlignment="Center"
+                                                      TextWrapping="Wrap"/>
+                                            <TextBlock x:Name="WelcomeSubtitleText"
+                                                      FontSize="14"
+                                                      Opacity="0.7"
+                                                      TextAlignment="Center"
+                                                      TextWrapping="Wrap"
+                                                      MaxWidth="400"/>
+                                        </StackPanel>
+                                        <Button Click="OpenFileButton_Click"
+                                               HorizontalAlignment="Center"
+                                               Style="{StaticResource AccentButtonStyle}"
+                                               Padding="32,12">
+                                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                                <SymbolIcon Symbol="OpenFile"/>
+                                                <TextBlock x:Name="WelcomeBrowseText" FontSize="16"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
                             </Grid>
-                        </Grid>
-                    </Border>
+                        </Border>
+
+                        <Border x:Name="SettingsHost"
+                                FlowDirection="LeftToRight"
+                                Visibility="Collapsed"
+                                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                CornerRadius="8"
+                                Margin="8">
+                            <local:SettingsPanel x:Name="AppSettingsPanel"/>
+                        </Border>
                 </Grid>
             </Grid>
         </NavigationView>
+
+        <Grid x:Name="LoadingOverlay"
+              Grid.RowSpan="2"
+              Visibility="Collapsed"
+              Background="#99000000"
+              IsHitTestVisible="True"
+              Canvas.ZIndex="100">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                <ProgressRing IsActive="True" Width="56" Height="56"/>
+                <TextBlock x:Name="LoadingOverlayText"
+                           FontSize="16"
+                           HorizontalAlignment="Center"
+                           Foreground="White"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>
