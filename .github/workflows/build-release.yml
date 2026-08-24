@@ -271,17 +271,20 @@ jobs:
       
     - name: Create Portable ZIP
       run: |
-        $docs = @(
+        $x64 = @(
+          "bin\x64\Release\net10.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe",
           "Release\INSTALL.txt",
           "Release\README.md",
           "Release\CHANGELOG.md"
         )
-        Compress-Archive -Path @(
-          "bin\x64\Release\net10.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe"
-        ) + $docs -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
-        Compress-Archive -Path @(
-          "bin\ARM64\Release\net10.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe"
-        ) + $docs -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
+        $arm64 = @(
+          "bin\ARM64\Release\net10.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe",
+          "Release\INSTALL.txt",
+          "Release\README.md",
+          "Release\CHANGELOG.md"
+        )
+        Compress-Archive -Path $x64 -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
+        Compress-Archive -Path $arm64 -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
       shell: pwsh
       
     - name: Upload Release Assets
