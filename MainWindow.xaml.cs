@@ -586,9 +586,8 @@ namespace MicaPDF
             OutlineEmptyText.Text = Loc.Get("outline.empty");
         }
 
-        private async Task LoadOutlineAsync(StorageFile file)
+        private void PopulateOutlineTree()
         {
-            _pdfOutline = await PdfOutline.LoadAsync(file);
             OutlineTreeView.RootNodes.Clear();
             if (_pdfOutline?.HasEntries == true)
             {
@@ -1025,6 +1024,8 @@ namespace MicaPDF
             ShowLoading(Loc.Get("loading.opening"));
             try
             {
+                var pdfBytes = await PdfPigServices.ReadBytesAsync(file);
+
                 _pdfDocument = await PdfDocument.LoadFromFileAsync(file);
                 if (_pdfDocument == null)
                 {
@@ -1047,13 +1048,15 @@ namespace MicaPDF
                 _pdfOutline = null;
                 OutlineTreeView.RootNodes.Clear();
                 RefreshOutlineEmptyState();
-                _pageLabels = await PdfPageLabels.LoadAsync(file, _pdfDocument.PageCount);
+                _pageLabels = PdfPageLabels.LoadFromBytes(pdfBytes, (int)_pdfDocument.PageCount);
 
                 var sizes = new Dictionary<uint, Size>();
                 for (uint i = 0; i < _pdfDocument.PageCount; i++)
                     sizes[i] = GetPageSize(i);
-                _textIndex = await PdfTextIndex.LoadAsync(file, sizes);
-                await LoadOutlineAsync(file);
+
+                (_textIndex, _pdfOutline) = PdfPigServices.LoadTextAndOutline(pdfBytes, sizes);
+                PopulateOutlineTree();
+
                 ApplyOutlinePaneState();
 
                 BindAnnotationOverlays();

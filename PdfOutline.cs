@@ -1,10 +1,5 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
-using UglyToad.PdfPig;
 using UglyToad.PdfPig.Outline;
-using Windows.Storage;
 
 namespace MicaPDF
 {
@@ -24,36 +19,17 @@ namespace MicaPDF
 
         public bool HasEntries => Roots.Count > 0;
 
-        public static async Task<PdfOutline?> LoadAsync(StorageFile file)
+        public static PdfOutline? FromBookmarks(Bookmarks bookmarks)
         {
-            try
+            var roots = new List<PdfOutlineEntry>();
+            foreach (var node in bookmarks.Roots)
             {
-                byte[] bytes;
-                using (var stream = await file.OpenStreamForReadAsync())
-                using (var ms = new MemoryStream())
-                {
-                    await stream.CopyToAsync(ms);
-                    bytes = ms.ToArray();
-                }
-
-                using var document = PdfDocument.Open(bytes);
-                if (!document.TryGetBookmarks(out Bookmarks? bookmarks) || bookmarks.Roots.Count == 0)
-                    return null;
-
-                var roots = new List<PdfOutlineEntry>();
-                foreach (var node in bookmarks.Roots)
-                {
-                    var entry = MapNode(node);
-                    if (entry != null)
-                        roots.Add(entry);
-                }
-
-                return roots.Count == 0 ? null : new PdfOutline(roots);
+                var entry = MapNode(node);
+                if (entry != null)
+                    roots.Add(entry);
             }
-            catch
-            {
-                return null;
-            }
+
+            return roots.Count == 0 ? null : new PdfOutline(roots);
         }
 
         private static PdfOutlineEntry? MapNode(BookmarkNode node)

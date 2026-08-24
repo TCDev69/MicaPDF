@@ -27,19 +27,29 @@ namespace MicaPDF
 
         public static async Task<PdfTextIndex> LoadAsync(StorageFile file, IReadOnlyDictionary<uint, Size> pageSizes)
         {
+            var bytes = await PdfPigServices.ReadBytesAsync(file);
+            return LoadFromBytes(bytes, pageSizes);
+        }
+
+        public static PdfTextIndex LoadFromBytes(byte[] bytes, IReadOnlyDictionary<uint, Size> pageSizes)
+        {
             var index = new PdfTextIndex();
             try
             {
-                byte[] bytes;
-                using (var stream = await file.OpenStreamForReadAsync())
-                using (var ms = new System.IO.MemoryStream())
-                {
-                    await stream.CopyToAsync(ms);
-                    bytes = ms.ToArray();
-                }
-
                 using var document = Pig.PdfDocument.Open(bytes);
-                foreach (var page in document.GetPages())
+                index.LoadFromDocument(document, pageSizes);
+            }
+            catch
+            {
+                // Scanned PDFs, encryption, or parse failures: no selectable text.
+            }
+
+            return index;
+        }
+
+        internal void LoadFromDocument(Pig.PdfDocument document, IReadOnlyDictionary<uint, Size> pageSizes)
+        {
+            foreach (var page in document.GetPages())
                 {
                     var pageIndex = (uint)(page.Number - 1);
                     if (!pageSizes.TryGetValue(pageIndex, out var winSize))
@@ -112,15 +122,8 @@ namespace MicaPDF
                         seq++;
                     }
 
-                    index._glyphs[pageIndex] = list;
+                    _glyphs[pageIndex] = list;
                 }
-            }
-            catch
-            {
-                // Scanned PDFs, encryption, or parse failures: no selectable text.
-            }
-
-            return index;
         }
 
         /// <summary>

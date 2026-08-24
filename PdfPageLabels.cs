@@ -57,19 +57,25 @@ namespace MicaPDF
 
             try
             {
-                var temp = Path.Combine(Path.GetTempPath(), "micapdf-labels-" + Guid.NewGuid().ToString("N") + ".pdf");
-                try
-                {
-                    using (var input = await file.OpenStreamForReadAsync())
-                    using (var output = File.Create(temp))
-                        await input.CopyToAsync(output);
+                var bytes = await PdfPigServices.ReadBytesAsync(file);
+                return LoadFromBytes(bytes, (int)pageCount);
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
-                    return LoadFromPath(temp, (int)pageCount);
-                }
-                finally
-                {
-                    try { File.Delete(temp); } catch { /* ignore */ }
-                }
+        public static PdfPageLabels? LoadFromBytes(byte[] bytes, int pageCount)
+        {
+            if (pageCount <= 0 || bytes.Length == 0)
+                return null;
+
+            try
+            {
+                using var stream = new MemoryStream(bytes);
+                using var document = PdfReader.Open(stream, PdfDocumentOpenMode.Import);
+                return LoadFromDocument(document, pageCount);
             }
             catch
             {
@@ -85,6 +91,18 @@ namespace MicaPDF
             try
             {
                 using var document = PdfReader.Open(path, PdfDocumentOpenMode.Import);
+                return LoadFromDocument(document, pageCount);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static PdfPageLabels? LoadFromDocument(PdfDocument document, int pageCount)
+        {
+            try
+            {
                 var catalog = document.Internals.Catalog;
                 var pageLabelsDict = catalog.Elements.GetDictionary("/PageLabels");
                 if (pageLabelsDict == null)
