@@ -1,46 +1,63 @@
 # MicaPDF
 
-PDF viewer for Windows 11 with Mica backdrop, zoom/navigation, and ink/text annotations. Saves annotations back into a PDF file.
+PDF viewer for Windows with Mica backdrop, zoom/navigation, ink and text annotations, and PDF export. Built with WinUI 3.
 
 ## Features
 
-- WinUI 3 / Windows App SDK with Mica Base Alt
-- PDF viewing via Windows.Data.Pdf (zoom 50%–500%, continuous and double-page modes)
-- Pen, highlighter, eraser, and text annotations
-- Save annotated PDF
+- Mica / Mica Base Alt backdrop (WinUI 3)
+- PDF viewing via Windows.Data.Pdf (zoom 50%–500%)
+- View modes: single page, double page, cover page, continuous scroll
+- Document outline (Chapters sidebar)
+- Page labels in the status bar when the PDF defines them
+- Recent files on the welcome screen (cover thumbnail, restores page and zoom)
+- Pen, highlighter, eraser, and text annotations with undo/redo
+- Copy text from the PDF
+- Save annotated PDF (PDFsharp export)
+- Print
+- Settings: theme, language (EN/IT), menu order, toolbar placement, update check
 - Optional default PDF handler registration
-- English and Italian UI
+- Drag-and-drop to open files
 
-## Installation
+## Download
 
-### Installer
+Pre-built releases (self-contained, no .NET install required):
 
-Use `setup.exe` / the release installer. It checks for .NET Desktop Runtime 10.0 if needed.
+- [Releases](https://github.com/TCDev69/MicaPDF/releases)
+- `MicaPDF-Setup-x64.exe` / `MicaPDF-Setup-ARM64.exe` — installer
+- `MicaPDF-Portable-x64.zip` / `MicaPDF-Portable-ARM64.zip` — portable build
 
-### From source
-
-Requires .NET 10 SDK and Visual Studio 2022 (or VS Code) with the Windows App SDK workload.
-
-```powershell
-dotnet publish -c Release -r win-x64 -p:Platform=x64 --self-contained false -p:PublishSingleFile=true
-```
+Each zip includes `INSTALL.txt`, `README.md`, and `CHANGELOG.md`.
 
 ## Requirements
 
 - Windows 10 version 1809 (build 17763) or later
-- .NET Desktop Runtime 10.0
+- GitHub release builds bundle the .NET runtime (standalone)
+- Building from source requires .NET 10 SDK
 
 ## Usage
 
-Open a PDF from the menu or by drag-and-drop. Use **Edit** for the annotation bar. **Save annotated PDF** writes a new PDF with your drawings and text.
+Open a PDF from the menu, recent files, or by drag-and-drop. Use **Edit** for the annotation toolbar. **Save annotated PDF** writes a new PDF with your drawings and text. Settings are under the gear icon in the menu.
+
+## Build from source
+
+Requires .NET 10 SDK and Visual Studio 2022 (or VS Code) with the Windows App SDK workload.
+
+```powershell
+dotnet publish -c Release -r win-x64 -p:Platform=x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
+dotnet publish -c Release -r win-arm64 -p:Platform=ARM64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
+```
 
 ## Technical details
 
 - Framework: WinUI 3 (Windows App SDK)
 - Language: C# / .NET 10
 - Rendering: Windows.Data.Pdf
+- Outline/text index: PdfPig
 - Export: PDFsharp
-- Backdrop: Mica / Mica Base Alt
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

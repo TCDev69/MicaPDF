@@ -16,6 +16,14 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Resolve version
+      run: |
+        $ver = $env:GITHUB_REF -replace '^refs/tags/v',''
+        if (-not $ver -or $ver -eq $env:GITHUB_REF) { $ver = '2.0.0' }
+        "APP_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        Write-Host "Building version $ver"
+      shell: pwsh
       
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -36,7 +44,38 @@ jobs:
       
     - name: Create Release Folder
       run: |
-        New-Item -ItemType Directory -Force -Path "Release"
+        New-Item -ItemType Directory -Force -Path "Release" | Out-Null
+        Copy-Item -Path "CHANGELOG.md" -Destination "Release\CHANGELOG.md"
+      shell: pwsh
+
+    - name: Extract release notes
+      run: |
+        $version = $env:APP_VERSION
+        $changelog = Get-Content "CHANGELOG.md" -Raw
+        $pattern = "(?s)## \[$([regex]::Escape($version))\][^\#]*"
+        if ($changelog -match $pattern) {
+          $notes = $Matches[0].Trim()
+        } else {
+          $notes = "## MicaPDF $version`n`nSee CHANGELOG.md for details."
+        }
+
+        @"
+
+        ### Downloads
+
+        **Installer**
+        - ``MicaPDF-Setup-x64.exe``
+        - ``MicaPDF-Setup-ARM64.exe``
+
+        **Portable**
+        - ``MicaPDF-Portable-x64.zip``
+        - ``MicaPDF-Portable-ARM64.zip``
+
+        Release builds are self-contained (no separate .NET install).
+
+        "@ | Out-File -FilePath "Release\RELEASE_NOTES.md" -Encoding UTF8 -NoNewline
+
+        "`n`n" + $notes | Out-File -FilePath "Release\RELEASE_NOTES.md" -Encoding UTF8 -Append
       shell: pwsh
       
     - name: Create Installation Instructions
@@ -51,18 +90,22 @@ jobs:
            - MicaPDF-Setup-x64.exe or MicaPDF-Portable-x64.zip
            - MicaPDF-Setup-ARM64.exe or MicaPDF-Portable-ARM64.zip
 
-        2. Run the installer or the portable executable.
+        2. Run the installer or extract the portable zip and run MicaPDF.exe.
 
         3. Optionally set MicaPDF as the default PDF reader when prompted.
 
         Basics
-        - Open PDFs from the menu or by drag-and-drop
-        - Edit mode: pen, highlighter, text, eraser
+        - Open PDFs from the menu, recent files, or drag-and-drop
+        - Edit mode: pen, highlighter, text, eraser (undo/redo supported)
+        - Chapters sidebar for documents with an outline
         - Save annotated PDF writes a new PDF with your annotations
+        - Settings: theme, language (EN/IT), menu layout, update check
 
         Requirements
         - Windows 10 version 1809 (build 17763) or later
-        - .NET Desktop Runtime 10.0 (installer prompts if missing)
+        - Release builds are self-contained; no .NET install needed
+
+        See CHANGELOG.md for version history.
 
         "@ | Out-File -FilePath "Release\INSTALL.txt" -Encoding UTF8
       shell: pwsh
@@ -77,31 +120,29 @@ jobs:
         ## Features
 
         - Mica backdrop (WinUI 3)
-        - PDF rendering with zoom and page modes
-        - Pen, highlighter, text, and eraser
-        - Save annotated PDF
+        - Zoom, continuous scroll, double-page and cover-page modes
+        - Document outline (Chapters), page labels, recent files
+        - Pen, highlighter, text, eraser; undo/redo
+        - Save annotated PDF, print, copy text
+        - Settings: theme, language (EN/IT), menu layout
         - Drag and drop; optional default PDF association
-        - English and Italian
 
         ## Requirements
 
         - Windows 10 (build 17763) or later
+        - Self-contained build (no .NET install required)
 
         ## Download
 
-        See the [Releases](../../releases) page.
+        See the [Releases](https://github.com/TCDev69/MicaPDF/releases) page.
 
-        ## Building from source
+        ## Changelog
 
-        ``````bash
-        git clone https://github.com/TCDev69/MicaPDF.git
-        cd MicaPDF
-        dotnet build -p:Platform=x64
-        ``````
+        See CHANGELOG.md in this folder.
 
         ## License
 
-        GNU General Public License v3.0 (GPLv3). See LICENSE.
+        GNU General Public License v3.0 (GPLv3). See LICENSE in the repository.
 
         "@ | Out-File -FilePath "Release\README.md" -Encoding UTF8
       shell: pwsh
@@ -113,9 +154,10 @@ jobs:
       
     - name: Create x64 Installer Script
       run: |
+        $ver = $env:APP_VERSION
         @"
         #define MyAppName "MicaPDF"
-        #define MyAppVersion "1.3.0"
+        #define MyAppVersion "$ver"
         #define MyAppPublisher "TCDev"
         #define MyAppURL "https://github.com/TCDev69/MicaPDF"
         #define MyAppExeName "MicaPDF.exe"
@@ -167,9 +209,10 @@ jobs:
       
     - name: Create ARM64 Installer Script
       run: |
+        $ver = $env:APP_VERSION
         @"
         #define MyAppName "MicaPDF"
-        #define MyAppVersion "1.3.0"
+        #define MyAppVersion "$ver"
         #define MyAppPublisher "TCDev"
         #define MyAppURL "https://github.com/TCDev69/MicaPDF"
         #define MyAppExeName "MicaPDF.exe"
@@ -228,8 +271,17 @@ jobs:
       
     - name: Create Portable ZIP
       run: |
-        Compress-Archive -Path "bin\x64\Release\net10.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
-        Compress-Archive -Path "bin\ARM64\Release\net10.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
+        $docs = @(
+          "Release\INSTALL.txt",
+          "Release\README.md",
+          "Release\CHANGELOG.md"
+        )
+        Compress-Archive -Path @(
+          "bin\x64\Release\net10.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe"
+        ) + $docs -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
+        Compress-Archive -Path @(
+          "bin\ARM64\Release\net10.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe"
+        ) + $docs -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
       shell: pwsh
       
     - name: Upload Release Assets
@@ -244,7 +296,7 @@ jobs:
           
     - name: Create GitHub Release
       if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           Release/MicaPDF-Portable-x64.zip
@@ -253,23 +305,7 @@ jobs:
           Release/MicaPDF-Setup-ARM64.exe
           Release/INSTALL.txt
           Release/README.md
-        body: |
-          ## MicaPDF
-          
-          PDF viewer for Windows with Mica backdrop and ink/text annotations.
-          
-          ### Downloads
-          
-          **Installer**
-          - `MicaPDF-Setup-x64.exe`
-          - `MicaPDF-Setup-ARM64.exe`
-          
-          **Portable**
-          - `MicaPDF-Portable-x64.zip`
-          - `MicaPDF-Portable-ARM64.zip`
-          
-          ### Notes
-          - Save annotated PDF writes a new PDF with your annotations
-          - Windows 10 (build 17763) or later
+          Release/CHANGELOG.md
+        body_path: Release/RELEASE_NOTES.md
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
