@@ -20,7 +20,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '10.0.x'
         
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
@@ -42,41 +42,28 @@ jobs:
     - name: Create Installation Instructions
       run: |
         @"
-        MicaPDF - Modern PDF Viewer for Windows
-        ========================================
+        MicaPDF
+        =======
 
-        Installation Instructions:
-        
-        1. Download the appropriate version for your system:
-           - MicaPDF-x64.exe (for 64-bit Windows - most common)
-           - MicaPDF-ARM64.exe (for ARM64 Windows devices)
-        
-        2. Run the downloaded file
-        
-        3. The app will ask if you want to set it as default PDF reader
-           - Click "Yes, Open Settings" to set as default
-           - Follow the on-screen instructions
-        
-        4. Features:
-           - Modern Mica translucent background
-           - High-quality PDF rendering
-           - Advanced zoom (up to 500%)
-           - Page navigation with keyboard shortcuts
-           - Pen annotation support
-           - Touch and mouse pan/drag
-           - Save annotated pages as images
-           - Drag & drop PDF files
-        
-        5. Usage:
-           - Open PDFs by dragging them onto the app window
-           - Use the side menu for all controls
-           - Enable pen mode to draw annotations
-           - Save annotated pages with "Save with Annotations"
-        
-        Requirements:
+        Installation
+
+        1. Download the build for your system:
+           - MicaPDF-Setup-x64.exe or MicaPDF-Portable-x64.zip
+           - MicaPDF-Setup-ARM64.exe or MicaPDF-Portable-ARM64.zip
+
+        2. Run the installer or the portable executable.
+
+        3. Optionally set MicaPDF as the default PDF reader when prompted.
+
+        Basics
+        - Open PDFs from the menu or by drag-and-drop
+        - Edit mode: pen, highlighter, text, eraser
+        - Save annotated PDF writes a new PDF with your annotations
+
+        Requirements
         - Windows 10 version 1809 (build 17763) or later
-        - Windows 11 recommended for best Mica effect
-        
+        - .NET Desktop Runtime 10.0 (installer prompts if missing)
+
         "@ | Out-File -FilePath "Release\INSTALL.txt" -Encoding UTF8
       shell: pwsh
       
@@ -85,47 +72,36 @@ jobs:
         @"
         # MicaPDF
 
-        A modern, beautiful PDF viewer for Windows with translucent Mica background effect.
+        PDF viewer for Windows with Mica backdrop, zoom/navigation, and ink/text annotations.
 
         ## Features
 
-        - 🎨 **Modern UI**: Beautiful Mica translucent background that blends with your desktop
-        - 📄 **High Quality**: High-definition PDF rendering (2x resolution)
-        - 🔍 **Advanced Zoom**: Zoom from 50% to 500%
-        - ✏️ **Annotations**: Draw and write on PDFs with pen support
-        - 💾 **Save Annotated**: Save your annotated pages as PNG images
-        - 🖱️ **Touch & Mouse**: Full touch and mouse support with pan/drag
-        - ⌨️ **Keyboard Shortcuts**: Navigate pages with Enter key
-        - 📂 **Drag & Drop**: Drop PDF files directly on the app
-        - 🎯 **File Association**: Set as default PDF reader
+        - Mica backdrop (WinUI 3)
+        - PDF rendering with zoom and page modes
+        - Pen, highlighter, text, and eraser
+        - Save annotated PDF
+        - Drag and drop; optional default PDF association
+        - English and Italian
 
-        ## System Requirements
+        ## Requirements
 
         - Windows 10 (build 17763) or later
-        - Windows 11 recommended for best visual experience
 
         ## Download
 
-        Download the latest release from the [Releases](../../releases) page.
+        See the [Releases](../../releases) page.
 
-        ## Installation
-
-        1. Download the appropriate version for your system
-        2. Run the executable
-        3. The app will prompt you to set it as default PDF reader
-        4. Enjoy!
-
-        ## Building from Source
+        ## Building from source
 
         ``````bash
-        git clone https://github.com/yourusername/MicaPDF.git
+        git clone https://github.com/TCDev69/MicaPDF.git
         cd MicaPDF
         dotnet build -p:Platform=x64
         ``````
 
         ## License
 
-        MIT License - See LICENSE file for details
+        GNU General Public License v3.0 (GPLv3). See LICENSE.
 
         "@ | Out-File -FilePath "Release\README.md" -Encoding UTF8
       shell: pwsh
@@ -139,9 +115,9 @@ jobs:
       run: |
         @"
         #define MyAppName "MicaPDF"
-        #define MyAppVersion "1.0.0"
-        #define MyAppPublisher "MicaPDF"
-        #define MyAppURL "https://github.com/yourusername/MicaPDF"
+        #define MyAppVersion "1.3.0"
+        #define MyAppPublisher "TCDev"
+        #define MyAppURL "https://github.com/TCDev69/MicaPDF"
         #define MyAppExeName "MicaPDF.exe"
 
         [Setup]
@@ -171,7 +147,7 @@ jobs:
         Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
         [Files]
-        Source: "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
+        Source: "bin\x64\Release\net10.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
 
         [Icons]
         Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -193,9 +169,9 @@ jobs:
       run: |
         @"
         #define MyAppName "MicaPDF"
-        #define MyAppVersion "1.0.0"
-        #define MyAppPublisher "MicaPDF"
-        #define MyAppURL "https://github.com/yourusername/MicaPDF"
+        #define MyAppVersion "1.3.0"
+        #define MyAppPublisher "TCDev"
+        #define MyAppURL "https://github.com/TCDev69/MicaPDF"
         #define MyAppExeName "MicaPDF.exe"
 
         [Setup]
@@ -225,7 +201,7 @@ jobs:
         Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
         [Files]
-        Source: "bin\ARM64\Release\net8.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
+        Source: "bin\ARM64\Release\net10.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe"; DestDir: "{app}"; Flags: ignoreversion
 
         [Icons]
         Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -252,8 +228,8 @@ jobs:
       
     - name: Create Portable ZIP
       run: |
-        Compress-Archive -Path "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
-        Compress-Archive -Path "bin\ARM64\Release\net8.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
+        Compress-Archive -Path "bin\x64\Release\net10.0-windows10.0.22621.0\win-x64\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-x64.zip" -Force
+        Compress-Archive -Path "bin\ARM64\Release\net10.0-windows10.0.22621.0\win-arm64\publish\MicaPDF.exe", "Release\INSTALL.txt", "Release\README.md" -DestinationPath "Release\MicaPDF-Portable-ARM64.zip" -Force
       shell: pwsh
       
     - name: Upload Release Assets
@@ -278,31 +254,22 @@ jobs:
           Release/INSTALL.txt
           Release/README.md
         body: |
-          ## MicaPDF Release
+          ## MicaPDF
           
-          A modern PDF viewer with translucent Mica background for Windows.
+          PDF viewer for Windows with Mica backdrop and ink/text annotations.
           
           ### Downloads
           
-          **Installer (Recommended)**
-          - `MicaPDF-Setup-x64.exe` - Windows Installer for 64-bit systems
-          - `MicaPDF-Setup-ARM64.exe` - Windows Installer for ARM64 devices
+          **Installer**
+          - `MicaPDF-Setup-x64.exe`
+          - `MicaPDF-Setup-ARM64.exe`
           
-          All installers include automatic file association setup.
+          **Portable**
+          - `MicaPDF-Portable-x64.zip`
+          - `MicaPDF-Portable-ARM64.zip`
           
-          **Portable Versions**
-          - `MicaPDF-Portable-x64.zip` - Portable version for 64-bit Windows
-          - `MicaPDF-Portable-ARM64.zip` - Portable version for ARM64 Windows
-          
-          ### Features
-          - Modern Mica translucent UI
-          - High-quality PDF rendering
-          - Pen annotations
-          - Touch and mouse support
-          - Set as default PDF reader
-          
-          ### Requirements
+          ### Notes
+          - Save annotated PDF writes a new PDF with your annotations
           - Windows 10 (build 17763) or later
-          - Windows 11 recommended
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

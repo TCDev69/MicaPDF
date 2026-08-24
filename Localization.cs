@@ -78,13 +78,6 @@ namespace MicaPDF
             }
         }
 
-        /// <summary>Register an extra language at runtime (e.g. after adding Strings/fr.json).</summary>
-        public static bool TryLoadLanguage(string languageId)
-        {
-            LoadCatalog(languageId);
-            return Catalogs.ContainsKey(languageId);
-        }
-
         public static string ResolveLanguageId(string? preference)
         {
             if (string.Equals(preference, English, StringComparison.OrdinalIgnoreCase))

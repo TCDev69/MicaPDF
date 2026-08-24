@@ -1,5 +1,5 @@
 #define MyAppName "MicaPDF"
-#define MyAppVersion "1.2.0"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "TCDev"
 #define MyAppExeName "MicaPDF.exe"
 
@@ -29,8 +29,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; IMPORTANT: Update the source path to match your publish output directory
-Source: "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "bin\x64\Release\net10.0-windows10.0.22621.0\win-x64\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\x64\Release\net10.0-windows10.0.22621.0\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
@@ -47,22 +47,22 @@ var
   NetRuntimeInstalled: Boolean;
   Result1: Boolean;
 begin
-  // Check for .NET 8 Desktop Runtime (x64)
-  // Registry key for .NET 8
-  NetRuntimeInstalled := RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64\sharedhost\Microsoft.NETCore.App\8.0.0') or 
-                         RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedhost\Microsoft.NETCore.App\8.0.0');
+  // Check for .NET 10 Desktop Runtime (x64)
+  // Registry key for .NET 10
+  NetRuntimeInstalled := RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64\sharedhost\Microsoft.NETCore.App\10.0.0') or 
+                         RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedhost\Microsoft.NETCore.App\10.0.0');
 
   if not NetRuntimeInstalled then
   begin
-    if MsgBox('This application requires .NET Desktop Runtime 8.0. Would you like to download it now?', mbConfirmation, MB_YESNO) = IDYES then
+    if MsgBox('This application requires .NET Desktop Runtime 10.0. Would you like to download it now?', mbConfirmation, MB_YESNO) = IDYES then
     begin
-      ShellExec('open', 'https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer', '', '', SW_SHOWNORMAL, mbConfirmation, ErrorCode);
-      MsgBox('Please install the .NET Runtime and then run this setup again.', mbInformation, MB_OK);
+      ShellExec('open', 'https://dotnet.microsoft.com/download/dotnet/10.0', '', '', SW_SHOWNORMAL, mbConfirmation, ErrorCode);
+      MsgBox('Please install the .NET Desktop Runtime and then run this setup again.', mbInformation, MB_OK);
       Result := False;
     end
     else
     begin
-      MsgBox('.NET Runtime 8.0 is required. Setup cannot continue.', mbCriticalError, MB_OK);
+      MsgBox('.NET Runtime 10.0 is required. Setup cannot continue.', mbCriticalError, MB_OK);
       Result := False;
     end;
   end

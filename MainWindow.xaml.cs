@@ -63,6 +63,9 @@ namespace MicaPDF
         private Windows.UI.Color _textColor = Windows.UI.Color.FromArgb(255, 20, 20, 20);
         private PenSlot _activePenSlot = PenSlot.Black;
         private readonly Dictionary<string, NavigationViewItem> _menuItemsByTag = new();
+        private readonly TextBlock StatusTextBlock = new();
+        private readonly TextBlock FileNameTextBlock = new();
+        private readonly TextBlock ZoomLevelTextBlock = new();
 
         public MainWindow()
         {
@@ -308,6 +311,9 @@ namespace MicaPDF
             SetNavContent(PrevPageItem, Loc.MenuTitle("prevpage"));
             SetNavContent(EditItem, Loc.MenuTitle("edit"));
             SetNavContent(ClearInkItem, Loc.MenuTitle("clearink"));
+            SetNavContent(DoublePageItem, Loc.MenuTitle("doublepagemode"));
+            SetNavContent(CoverPageItem, Loc.MenuTitle("coverpagemode"));
+            SetNavContent(ContinuousItem, Loc.MenuTitle("continuousmode"));
 
             RefreshModeLabels();
             UpdatePageHeaderText();
@@ -336,15 +342,9 @@ namespace MicaPDF
 
         private void RefreshModeLabels()
         {
-            ContinuousModeTextBlock.Text = _isContinuousMode
-                ? Loc.Get("nav.disableContinuous")
-                : Loc.Get("nav.enableContinuous");
-            DoublePageModeTextBlock.Text = _isDoublePageMode
-                ? Loc.Get("nav.disableDouble")
-                : Loc.Get("nav.enableDouble");
-            CoverPageModeTextBlock.Text = _isCoverPageMode
-                ? Loc.Get("nav.coverOn")
-                : Loc.Get("nav.coverOff");
+            DoublePageItem.IsSelected = _isDoublePageMode;
+            CoverPageItem.IsSelected = _isCoverPageMode;
+            ContinuousItem.IsSelected = _isContinuousMode;
         }
 
         private void UpdatePageHeaderText()
@@ -352,8 +352,6 @@ namespace MicaPDF
             var total = _pdfDocument?.PageCount ?? 1u;
             var page = _pdfDocument == null ? 1u : _currentPageIndex + 1;
             PageHeaderTextBlock.Content = Loc.Format("nav.page", page, total);
-            if (_pdfDocument != null)
-                PageInfoTextBlock.Text = $"{page} / {total}";
         }
 
         private static void SetNavContent(NavigationViewItem item, string text)
@@ -636,6 +634,8 @@ namespace MicaPDF
                     await PrintPdf();
                     break;
             }
+
+            RefreshModeLabels();
         }
 
         private void ApplyThemeToWindow()
@@ -1004,7 +1004,6 @@ namespace MicaPDF
                     else if (rightIndex >= _pdfDocument.PageCount) text = $"{leftIndex + 1}";
                     else text = $"{leftIndex + 1}-{rightIndex + 1}";
 
-                    PageInfoTextBlock.Text = $"{text} / {_pdfDocument.PageCount}";
                     PageHeaderTextBlock.Content = Loc.Format("nav.page", text, _pdfDocument.PageCount);
                     _currentPageIndex = showLeft ? leftIndex : rightIndex;
                 }
@@ -1012,7 +1011,6 @@ namespace MicaPDF
                 {
                     PdfImage.Source = await RenderPageBitmapAsync(_currentPageIndex, true);
                     ConfigureOverlay(PdfAnnotationOverlay, _currentPageIndex);
-                    PageInfoTextBlock.Text = $"{_currentPageIndex + 1} / {_pdfDocument.PageCount}";
                     PageHeaderTextBlock.Content = Loc.Format("nav.page", _currentPageIndex + 1, _pdfDocument.PageCount);
                 }
             }
@@ -1340,7 +1338,7 @@ namespace MicaPDF
             {
                 _isContinuousMode = false;
                 ContinuousPageContainer.Visibility = Visibility.Collapsed;
-                ContinuousModeTextBlock.Text = Loc.Get("nav.enableContinuous");
+                DoublePageItem.IsEnabled = true;
             }
 
             _isDoublePageMode = !_isDoublePageMode;
@@ -1348,7 +1346,6 @@ namespace MicaPDF
             {
                 SinglePageContainer.Visibility = Visibility.Collapsed;
                 DoublePageContainer.Visibility = Visibility.Visible;
-                DoublePageModeTextBlock.Text = Loc.Get("nav.disableDouble");
                 CoverPageItem.Visibility = _settings.HiddenMenuTags.Contains("coverpagemode")
                     ? Visibility.Collapsed
                     : Visibility.Visible;
@@ -1366,17 +1363,16 @@ namespace MicaPDF
             {
                 SinglePageContainer.Visibility = Visibility.Visible;
                 DoublePageContainer.Visibility = Visibility.Collapsed;
-                DoublePageModeTextBlock.Text = Loc.Get("nav.enableDouble");
                 CoverPageItem.Visibility = Visibility.Collapsed;
             }
 
+            RefreshModeLabels();
             await RenderCurrentPage();
         }
 
         private async Task ToggleCoverPageMode()
         {
             _isCoverPageMode = !_isCoverPageMode;
-            CoverPageModeTextBlock.Text = _isCoverPageMode ? Loc.Get("nav.coverOn") : Loc.Get("nav.coverOff");
             if (_isDoublePageMode)
             {
                 if (_isCoverPageMode)
@@ -1390,6 +1386,7 @@ namespace MicaPDF
                 }
             }
 
+            RefreshModeLabels();
             await RenderCurrentPage();
         }
 
@@ -1402,14 +1399,13 @@ namespace MicaPDF
                 SinglePageContainer.Visibility = Visibility.Collapsed;
                 DoublePageContainer.Visibility = Visibility.Collapsed;
                 ContinuousPageContainer.Visibility = Visibility.Visible;
-                ContinuousModeTextBlock.Text = Loc.Get("nav.disableContinuous");
-                DoublePageModeTextBlock.Text = Loc.Get("nav.enableDouble");
                 CoverPageItem.Visibility = Visibility.Collapsed;
                 DoublePageItem.IsEnabled = false;
                 ZoomInItem.IsEnabled = true;
                 ZoomOutItem.IsEnabled = true;
                 ZoomResetItem.IsEnabled = true;
                 ZoomFitItem.IsEnabled = true;
+                RefreshModeLabels();
                 await BuildContinuousLayoutAsync();
             }
             else
@@ -1418,9 +1414,9 @@ namespace MicaPDF
                 SinglePageContainer.Visibility = Visibility.Visible;
                 DoublePageContainer.Visibility = Visibility.Collapsed;
                 ContinuousPageContainer.Visibility = Visibility.Collapsed;
-                ContinuousModeTextBlock.Text = Loc.Get("nav.enableContinuous");
                 _continuousPages.Clear();
                 ContinuousPageContainer.Children.Clear();
+                RefreshModeLabels();
                 await RenderCurrentPage();
             }
         }

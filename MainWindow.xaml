@@ -44,48 +44,20 @@
                         Header="">
 
             <NavigationView.MenuItems>
-                <NavigationViewItem x:Name="OpenFileItem" Icon="OpenFile" Content="Open File" Tag="open"/>
-                <NavigationViewItem x:Name="PrintItem" Tag="print">
-                    <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Print"/>
-                    </NavigationViewItem.Icon>
-                    <NavigationViewItem.Content>
-                        <TextBlock Text="Print"/>
-                    </NavigationViewItem.Content>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="SaveItem" Tag="savewithannotations">
-                    <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Save"/>
-                    </NavigationViewItem.Icon>
-                    <NavigationViewItem.Content>
-                        <TextBlock Text="Save with Annotations"/>
-                    </NavigationViewItem.Content>
-                </NavigationViewItem>
+                <NavigationViewItem x:Name="OpenFileItem" Icon="OpenFile" Content="Open" Tag="open"/>
+                <NavigationViewItem x:Name="PrintItem" Icon="Print" Content="Print" Tag="print"/>
+                <NavigationViewItem x:Name="SaveItem" Icon="Save" Content="Save annotated PDF" Tag="savewithannotations"/>
 
                 <NavigationViewItemSeparator x:Name="Sep1"/>
 
-                <NavigationViewItem x:Name="ZoomInItem" Tag="zoomin">
-                    <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="ZoomIn"/>
-                    </NavigationViewItem.Icon>
-                    <NavigationViewItem.Content>
-                        <TextBlock Text="Zoom In" VerticalAlignment="Center"/>
-                    </NavigationViewItem.Content>
-                </NavigationViewItem>
-                <NavigationViewItem x:Name="ZoomOutItem" Tag="zoomout">
-                    <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="ZoomOut"/>
-                    </NavigationViewItem.Icon>
-                    <NavigationViewItem.Content>
-                        <TextBlock Text="Zoom Out"/>
-                    </NavigationViewItem.Content>
-                </NavigationViewItem>
+                <NavigationViewItem x:Name="ZoomInItem" Icon="ZoomIn" Content="Zoom in" Tag="zoomin"/>
+                <NavigationViewItem x:Name="ZoomOutItem" Icon="ZoomOut" Content="Zoom out" Tag="zoomout"/>
                 <NavigationViewItem x:Name="ZoomResetItem" Tag="zoomreset">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE71E;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock Text="Reset Zoom (50%)"/>
+                        <TextBlock Text="Actual size"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItem x:Name="ZoomFitItem" Tag="zoomfit">
@@ -93,7 +65,7 @@
                         <FontIcon Glyph="&#xE9A6;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock Text="Fit Page"/>
+                        <TextBlock Text="Fit page"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
 
@@ -105,14 +77,14 @@
                         <FontIcon Glyph="&#xE8CB;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem x:Name="NextPageItem" Icon="Next" Content="Next Page" Tag="nextpage"/>
-                <NavigationViewItem x:Name="PrevPageItem" Icon="Previous" Content="Previous Page" Tag="prevpage"/>
+                <NavigationViewItem x:Name="NextPageItem" Icon="Next" Content="Next page" Tag="nextpage"/>
+                <NavigationViewItem x:Name="PrevPageItem" Icon="Previous" Content="Previous page" Tag="prevpage"/>
                 <NavigationViewItem x:Name="DoublePageItem" Tag="doublepagemode">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE89A;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock x:Name="DoublePageModeTextBlock" Text="Enable Double Page"/>
+                        <TextBlock x:Name="DoublePageModeTextBlock" Text="Double page"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItem x:Name="CoverPageItem" Tag="coverpagemode" Visibility="Collapsed">
@@ -120,7 +92,7 @@
                         <FontIcon Glyph="&#xE7ad;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock x:Name="CoverPageModeTextBlock" Text="Cover Page: Off"/>
+                        <TextBlock x:Name="CoverPageModeTextBlock" Text="Cover page"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
                 <NavigationViewItem x:Name="ContinuousItem" Tag="continuousmode">
@@ -128,7 +100,7 @@
                         <FontIcon Glyph="&#xF571;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock x:Name="ContinuousModeTextBlock" Text="Enable Continuous Scroll"/>
+                        <TextBlock x:Name="ContinuousModeTextBlock" Text="Continuous scroll"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
 
@@ -147,7 +119,7 @@
                         <FontIcon Glyph="&#xE74D;"/>
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
-                        <TextBlock Text="Clear All Annotations"/>
+                        <TextBlock Text="Clear annotations"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
@@ -171,13 +143,6 @@
                                   KeyDown="PageNumberBox_KeyDown"/>
                     </StackPanel>
                 </ContentDialog>
-
-                <StackPanel Visibility="Collapsed">
-                    <TextBlock x:Name="FileNameTextBlock"/>
-                    <TextBlock x:Name="StatusTextBlock"/>
-                    <TextBlock x:Name="PageInfoTextBlock"/>
-                    <TextBlock x:Name="ZoomLevelTextBlock"/>
-                </StackPanel>
 
                 <Grid>
                         <Border x:Name="ViewerPanel"
@@ -254,15 +219,15 @@
                                 <Grid x:Name="WelcomePanel" Padding="48">
                                     <StackPanel HorizontalAlignment="Center"
                                                VerticalAlignment="Center"
-                                               Spacing="24"
-                                               MaxWidth="600">
-                                        <Viewbox Width="120" Height="120">
+                                               Spacing="16"
+                                               MaxWidth="420">
+                                        <Viewbox Width="72" Height="72">
                                             <SymbolIcon Symbol="Document"/>
                                         </Viewbox>
-                                        <StackPanel Spacing="12" HorizontalAlignment="Center">
+                                        <StackPanel Spacing="8" HorizontalAlignment="Center">
                                             <TextBlock x:Name="WelcomeTitleText"
-                                                      FontSize="28"
-                                                      FontWeight="Bold"
+                                                      FontSize="22"
+                                                      FontWeight="SemiBold"
                                                       HorizontalAlignment="Center"
                                                       TextWrapping="Wrap"/>
                                             <TextBlock x:Name="WelcomeSubtitleText"
@@ -270,15 +235,15 @@
                                                       Opacity="0.7"
                                                       TextAlignment="Center"
                                                       TextWrapping="Wrap"
-                                                      MaxWidth="400"/>
+                                                      MaxWidth="360"/>
                                         </StackPanel>
                                         <Button Click="OpenFileButton_Click"
                                                HorizontalAlignment="Center"
                                                Style="{StaticResource AccentButtonStyle}"
-                                               Padding="32,12">
-                                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                               Padding="24,10">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <SymbolIcon Symbol="OpenFile"/>
-                                                <TextBlock x:Name="WelcomeBrowseText" FontSize="16"/>
+                                                <TextBlock x:Name="WelcomeBrowseText" FontSize="14"/>
                                             </StackPanel>
                                         </Button>
                                     </StackPanel>

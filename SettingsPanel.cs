@@ -21,6 +21,10 @@ namespace MicaPDF
         private readonly ListView _menuList;
         private readonly TextBlock _statusText;
         private readonly TextBlock _titleBlock;
+        private readonly TextBlock _appearanceHeader;
+        private readonly TextBlock _viewerHeader;
+        private readonly TextBlock _updatesHeader;
+        private readonly TextBlock _menuHeader;
         private readonly TextBlock _themeLabel;
         private readonly TextBlock _languageLabel;
         private readonly TextBlock _paneLabel;
@@ -58,7 +62,11 @@ namespace MicaPDF
             };
             _statusText = new TextBlock { Opacity = 0.7, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Left };
 
-            _titleBlock = new TextBlock { FontSize = 28, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
+            _titleBlock = new TextBlock { FontSize = 22, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            _appearanceHeader = SectionHeader();
+            _viewerHeader = SectionHeader();
+            _updatesHeader = SectionHeader();
+            _menuHeader = SectionHeader();
             _themeLabel = new TextBlock();
             _languageLabel = new TextBlock();
             _paneLabel = new TextBlock();
@@ -104,48 +112,59 @@ namespace MicaPDF
             _repoBox.LostFocus += (_, _) => AutoApply();
             _menuItems.CollectionChanged += MenuItems_CollectionChanged;
 
+            var root = new StackPanel
+            {
+                Spacing = 10,
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+            root.Children.Add(_titleBlock);
+            root.Children.Add(_appearanceHeader);
+            root.Children.Add(_themeLabel);
+            root.Children.Add(_themeBox);
+            root.Children.Add(_languageLabel);
+            root.Children.Add(_languageBox);
+            root.Children.Add(_paneLabel);
+            root.Children.Add(_paneBox);
+            root.Children.Add(_floatingLabel);
+            root.Children.Add(_floatingBarBox);
+            root.Children.Add(_viewerHeader);
+            root.Children.Add(_wheelLabel);
+            root.Children.Add(_wheelCtrlSwitch);
+            root.Children.Add(_confirmLabel);
+            root.Children.Add(_confirmClearSwitch);
+            root.Children.Add(_updatesHeader);
+            root.Children.Add(_autoUpdateLabel);
+            root.Children.Add(_autoUpdateSwitch);
+            root.Children.Add(_repoLabel);
+            root.Children.Add(_repoBox);
+            root.Children.Add(_checkButton);
+            root.Children.Add(_menuHeader);
+            root.Children.Add(_menuItemsLabel);
+            root.Children.Add(new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Children = { _upButton, _downButton }
+            });
+            root.Children.Add(_menuList);
+            root.Children.Add(_statusText);
+
             Content = new ScrollViewer
             {
                 Padding = new Thickness(24),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                Content = new StackPanel
-                {
-                    Spacing = 16,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Children =
-                    {
-                        _titleBlock,
-                        _themeLabel,
-                        _themeBox,
-                        _languageLabel,
-                        _languageBox,
-                        _paneLabel,
-                        _paneBox,
-                        _floatingLabel,
-                        _floatingBarBox,
-                        _autoUpdateLabel,
-                        _autoUpdateSwitch,
-                        _wheelLabel,
-                        _wheelCtrlSwitch,
-                        _confirmLabel,
-                        _confirmClearSwitch,
-                        _repoLabel,
-                        _repoBox,
-                        _checkButton,
-                        _menuItemsLabel,
-                        new StackPanel
-                        {
-                            Orientation = Orientation.Horizontal,
-                            Children = { _upButton, _downButton }
-                        },
-                        _menuList,
-                        _statusText
-                    }
-                }
+                Content = root
             };
 
             RefreshLocalizedUi();
         }
+
+        private static TextBlock SectionHeader() => new()
+        {
+            FontSize = 14,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Margin = new Thickness(0, 16, 0, 4),
+            Opacity = 0.85
+        };
 
         public void LoadSettings(AppSettings settings)
         {
@@ -187,6 +206,10 @@ namespace MicaPDF
             _loading = true;
 
             _titleBlock.Text = Loc.Get("settings.title");
+            _appearanceHeader.Text = Loc.Get("settings.section.appearance");
+            _viewerHeader.Text = Loc.Get("settings.section.viewer");
+            _updatesHeader.Text = Loc.Get("settings.section.updates");
+            _menuHeader.Text = Loc.Get("settings.section.menu");
             _themeLabel.Text = Loc.Get("settings.theme");
             _languageLabel.Text = Loc.Get("settings.language");
             _paneLabel.Text = Loc.Get("settings.menuPosition");

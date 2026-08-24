@@ -6,7 +6,6 @@ namespace MicaPDF
 {
     public interface IAnnotationCommand
     {
-        string Description { get; }
         void Undo();
         void Redo();
     }
@@ -23,8 +22,6 @@ namespace MicaPDF
         public bool CanRedo => _redo.Count > 0;
 
         public event EventHandler? Changed;
-
-        public IReadOnlyList<IAnnotationCommand> RedoItems => _redo;
 
         public void Push(IAnnotationCommand command)
         {
@@ -81,8 +78,6 @@ namespace MicaPDF
             _stroke = stroke;
         }
 
-        public string Description => "Add ink";
-
         public void Undo()
         {
             _store.RemoveStroke(_page, _stroke);
@@ -110,8 +105,6 @@ namespace MicaPDF
             _live = stroke;
         }
 
-        public string Description => "Erase ink";
-
         public void Undo()
         {
             _live = _prototype.Clone();
@@ -137,8 +130,6 @@ namespace MicaPDF
             _dy = dy;
         }
 
-        public string Description => "Move ink";
-
         public void Undo() => Translate(-_dx, -_dy);
 
         public void Redo() => Translate(_dx, _dy);
@@ -160,8 +151,6 @@ namespace MicaPDF
             _text = text;
         }
 
-        public string Description => "Add text";
-
         public void Undo() => _store.RemoveText(_text);
 
         public void Redo()
@@ -181,8 +170,6 @@ namespace MicaPDF
             _store = store;
             _text = text;
         }
-
-        public string Description => "Delete text";
 
         public void Undo()
         {
@@ -205,8 +192,6 @@ namespace MicaPDF
             _dx = dx;
             _dy = dy;
         }
-
-        public string Description => "Move text";
 
         public void Undo()
         {
@@ -234,8 +219,6 @@ namespace MicaPDF
             _newText = newText;
         }
 
-        public string Description => "Edit text";
-
         public void Undo() => _text.Text = _oldText;
 
         public void Redo() => _text.Text = _newText;
@@ -260,8 +243,6 @@ namespace MicaPDF
             _oldColor = before.Color;
             _newColor = text.Color;
         }
-
-        public string Description => "Style text";
 
         public void Undo() => Apply(_oldSize, _oldBold, _oldItalic, _oldColor);
 
