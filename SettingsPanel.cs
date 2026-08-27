@@ -16,6 +16,7 @@ namespace MicaPDF
         private ComboBox _floatingBarBox = null!;
         private ToggleSwitch _autoUpdateSwitch = null!;
         private ToggleSwitch _wheelCtrlSwitch = null!;
+        private ComboBox _maxZoomBox = null!;
         private ToggleSwitch _confirmClearSwitch = null!;
         private TextBox _repoBox = null!;
         private ListView _menuList = null!;
@@ -31,6 +32,7 @@ namespace MicaPDF
         private TextBlock _floatingLabel = null!;
         private TextBlock _autoUpdateLabel = null!;
         private TextBlock _wheelLabel = null!;
+        private TextBlock _maxZoomLabel = null!;
         private TextBlock _confirmLabel = null!;
         private TextBlock _repoLabel = null!;
         private TextBlock _menuItemsLabel = null!;
@@ -47,7 +49,11 @@ namespace MicaPDF
         public SettingsPanel()
         {
             InitializeComponent();
+            BuildSettingsUi();
+        }
 
+        private void BuildSettingsUi()
+        {
             _themeBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
             _languageBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
             _paneBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
@@ -55,6 +61,7 @@ namespace MicaPDF
 
             _autoUpdateSwitch = new ToggleSwitch { HorizontalAlignment = HorizontalAlignment.Left };
             _wheelCtrlSwitch = new ToggleSwitch { HorizontalAlignment = HorizontalAlignment.Left };
+            _maxZoomBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
             _confirmClearSwitch = new ToggleSwitch { HorizontalAlignment = HorizontalAlignment.Left };
             _repoBox = new TextBox
             {
@@ -74,6 +81,7 @@ namespace MicaPDF
             _floatingLabel = new TextBlock();
             _autoUpdateLabel = new TextBlock();
             _wheelLabel = new TextBlock();
+            _maxZoomLabel = new TextBlock();
             _confirmLabel = new TextBlock();
             _repoLabel = new TextBlock();
             _menuItemsLabel = new TextBlock();
@@ -109,6 +117,7 @@ namespace MicaPDF
             _floatingBarBox.SelectionChanged += (_, _) => AutoApply();
             _autoUpdateSwitch.Toggled += (_, _) => AutoApply();
             _wheelCtrlSwitch.Toggled += (_, _) => AutoApply();
+            _maxZoomBox.SelectionChanged += (_, _) => AutoApply();
             _confirmClearSwitch.Toggled += (_, _) => AutoApply();
             _repoBox.LostFocus += (_, _) => AutoApply();
             _menuItems.CollectionChanged += MenuItems_CollectionChanged;
@@ -131,6 +140,8 @@ namespace MicaPDF
             root.Children.Add(_viewerHeader);
             root.Children.Add(_wheelLabel);
             root.Children.Add(_wheelCtrlSwitch);
+            root.Children.Add(_maxZoomLabel);
+            root.Children.Add(_maxZoomBox);
             root.Children.Add(_confirmLabel);
             root.Children.Add(_confirmClearSwitch);
             root.Children.Add(_updatesHeader);
@@ -172,6 +183,7 @@ namespace MicaPDF
             SelectCombo(_floatingBarBox, settings.FloatingBarPosition);
             _autoUpdateSwitch.IsOn = settings.AutoUpdate;
             _wheelCtrlSwitch.IsOn = settings.WheelZoomRequiresCtrl;
+            SelectCombo(_maxZoomBox, settings.MaxZoomPercent);
             _confirmClearSwitch.IsOn = settings.ConfirmClearAnnotations;
             _repoBox.Text = settings.GitHubRepository;
 
@@ -211,6 +223,7 @@ namespace MicaPDF
             _floatingLabel.Text = Loc.Get("settings.floatingBar");
             _autoUpdateLabel.Text = Loc.Get("settings.autoUpdate");
             _wheelLabel.Text = Loc.Get("settings.wheelZoom");
+            _maxZoomLabel.Text = Loc.Get("settings.maxZoom");
             _confirmLabel.Text = Loc.Get("settings.confirmClear");
             _repoLabel.Text = Loc.Get("settings.githubRepo");
             _menuItemsLabel.Text = Loc.Get("settings.menuItems");
@@ -230,6 +243,7 @@ namespace MicaPDF
             RefillLanguageBox();
             RefillPaneBox();
             RefillFloatingBox();
+            RefillMaxZoomBox();
             _menuList.ItemTemplate = CreateMenuTemplate();
 
             foreach (var item in _menuItems)
@@ -280,6 +294,22 @@ namespace MicaPDF
             SelectCombo(_floatingBarBox, selected);
         }
 
+        private void RefillMaxZoomBox()
+        {
+            var selected = (_maxZoomBox.SelectedItem as ComboBoxItem)?.Tag as int?
+                ?? ZoomLimits.DefaultMaxZoomPercent;
+            _maxZoomBox.Items.Clear();
+            foreach (var percent in new[] { 100, 150, 200, 300, 500 })
+            {
+                _maxZoomBox.Items.Add(new ComboBoxItem
+                {
+                    Content = $"{percent}%",
+                    Tag = percent
+                });
+            }
+            SelectCombo(_maxZoomBox, selected);
+        }
+
         private void MenuItems_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.NewItems != null)
@@ -320,6 +350,8 @@ namespace MicaPDF
 
             _settings.AutoUpdate = _autoUpdateSwitch.IsOn;
             _settings.WheelZoomRequiresCtrl = _wheelCtrlSwitch.IsOn;
+            if (_maxZoomBox.SelectedItem is ComboBoxItem maxItem && maxItem.Tag is int maxZoom)
+                _settings.MaxZoomPercent = ZoomLimits.SanitizeMaxZoomPercent(maxZoom);
             _settings.ConfirmClearAnnotations = _confirmClearSwitch.IsOn;
             _settings.GitHubRepository = string.IsNullOrWhiteSpace(_repoBox.Text)
                 ? AppSettings.DefaultGitHubRepository

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Data.Pdf;
@@ -58,10 +59,9 @@ namespace MicaPDF
         private bool _isCoverPageMode;
         private bool _isContinuousMode;
         private PrintHelper? _printHelper;
-        private readonly PdfPageCache _pageCache = new(48);
+        private readonly PdfPageCache _pageCache = new(8, PdfPageCache.DefaultByteBudget);
         private readonly AnnotationStore _annotations = new();
         private readonly AnnotationHistory _history = new();
-        private readonly List<ContinuousPageHost> _continuousPages = new();
         private AppSettings _settings = AppSettings.Load();
         private PdfTextIndex? _textIndex;
         private bool _forceClose;
@@ -75,6 +75,14 @@ namespace MicaPDF
         private bool _textItalic;
         private Windows.UI.Color _textColor = Windows.UI.Color.FromArgb(255, 20, 20, 20);
         private PenSlot _activePenSlot = PenSlot.Black;
+        private static readonly string[][] MenuSectionTags =
+        {
+            new[] { "open", "recentfiles", "print", "savewithannotations" },
+            new[] { "zoomin", "zoomout", "zoomreset", "zoomfit", "find" },
+            new[] { "outline", "gotopage", "nextpage", "prevpage", "doublepagemode", "coverpagemode", "continuousmode" },
+            new[] { "edit", "clearink" }
+        };
+
         private readonly Dictionary<string, NavigationViewItem> _menuItemsByTag = new();
         private RecentFilesStore _recentFiles = RecentFilesStore.Load();
         private Microsoft.UI.Dispatching.DispatcherQueueTimer? _sessionSaveTimer;
@@ -133,7 +141,7 @@ namespace MicaPDF
             WireInkToolbar();
             _history.Changed += (_, _) =>
             {
-                RefreshAllOverlays();
+                RefreshVisibleOverlays();
                 AnnotationToolbar.SetHistoryState(_history.CanUndo, _history.CanRedo);
                 ScheduleAnnotationAutosave();
             };
@@ -182,17 +190,19 @@ namespace MicaPDF
 
         private Size GetPageSize(uint pageIndex)
         {
+            if (_pageSizes.TryGetValue(pageIndex, out var cached))
+                return cached;
+
             if (_pdfDocument == null || pageIndex >= _pdfDocument.PageCount)
                 return new Size(1, 1);
+
             using var page = _pdfDocument.GetPage(pageIndex);
-            return page.Size;
+            var size = page.Size;
+            _pageSizes[pageIndex] = size;
+            return size;
         }
 
-        private void RefreshAllOverlays()
-        {
-            foreach (var overlay in EnumerateOverlays())
-                overlay.Refresh();
-        }
+        private void RefreshAllOverlays() => RefreshVisibleOverlays();
 
         private void WireInkToolbar()
         {
@@ -314,33 +324,48 @@ namespace MicaPDF
                 _settings.HighlighterColor);
             AnnotationToolbar.ApplyDock(_settings.FloatingBarPosition);
             ApplyPenAttributesToOverlays();
+            EnforceMaxZoomFromSettings();
+        }
+
+        private void EnforceMaxZoomFromSettings()
+        {
+            UpdateScrollViewerZoomLimits();
+            if (_pdfDocument == null) return;
+            var maxZoom = ZoomLimits.MaxZoomFromPercent(_settings.MaxZoomPercent);
+            if (_currentZoom > maxZoom + 0.001)
+                ApplyInteractiveZoom(maxZoom);
         }
 
         private void RefreshLocalizedUi()
         {
-            SetNavContent(OpenFileItem, Loc.MenuTitle("open"));
-            SetNavContent(RecentFilesItem, Loc.MenuTitle("recentfiles"));
+            SetNavItem(OpenFileItem, "open");
+            SetNavItem(RecentFilesItem, "recentfiles");
             RecentFilesItemText.Text = Loc.MenuTitle("recentfiles");
-            SetNavContent(PrintItem, Loc.MenuTitle("print"));
-            SetNavContent(SaveItem, Loc.MenuTitle("savewithannotations"));
-            SetNavContent(ZoomInItem, Loc.MenuTitle("zoomin"));
-            SetNavContent(ZoomOutItem, Loc.MenuTitle("zoomout"));
-            SetNavContent(ZoomResetItem, Loc.MenuTitle("zoomreset"));
-            SetNavContent(ZoomFitItem, Loc.Get(_zoomFitMode == ZoomFitMode.Height ? "menu.zoomfit.height" : "menu.zoomfit.width"));
-            SetNavContent(FindItem, Loc.Get("menu.find"));
+            SetNavItem(PrintItem, "print");
+            SetNavItem(SaveItem, "savewithannotations");
+            SetNavItem(ZoomInItem, "zoomin");
+            SetNavItem(ZoomOutItem, "zoomout");
+            SetNavItem(ZoomResetItem, "zoomreset");
+            SetNavItem(ZoomFitItem, "zoomfit", Loc.Get(_zoomFitMode == ZoomFitMode.Height ? "menu.zoomfit.height" : "menu.zoomfit.width"));
+            SetNavItem(FindItem, "find");
             FindTextBox.PlaceholderText = Loc.Get("find.placeholder");
-            SetNavContent(GoToPageItem, Loc.MenuTitle("gotopage"));
-            SetNavContent(NextPageItem, Loc.MenuTitle("nextpage"));
-            SetNavContent(PrevPageItem, Loc.MenuTitle("prevpage"));
-            SetNavContent(ContinuousItem, Loc.MenuTitle("continuousmode"));
-            SetNavContent(OutlineItem, Loc.MenuTitle("outline"));
-            SetNavContent(EditItem, Loc.MenuTitle("edit"));
-            SetNavContent(ClearInkItem, Loc.MenuTitle("clearink"));
-            SetNavContent(DoublePageItem, Loc.MenuTitle("doublepagemode"));
-            SetNavContent(CoverPageItem, Loc.MenuTitle("coverpagemode"));
+            SetNavItem(GoToPageItem, "gotopage");
+            SetNavItem(NextPageItem, "nextpage");
+            SetNavItem(PrevPageItem, "prevpage");
+            SetNavItem(ContinuousItem, "continuousmode");
+            SetNavItem(OutlineItem, "outline");
+            SetNavItem(EditItem, "edit");
+            SetNavItem(ClearInkItem, "clearink");
+            SetNavItem(DoublePageItem, "doublepagemode");
+            SetNavItem(CoverPageItem, "coverpagemode");
+
+            FileSectionHeader.Content = Loc.Get("nav.section.file");
+            ZoomSectionHeader.Content = Loc.Get("nav.section.zoom");
+            PagesSectionHeader.Content = Loc.Get("nav.section.pages");
+            AnnotationsSectionHeader.Content = Loc.Get("nav.section.annotations");
 
             RefreshModeLabels();
-            UpdatePageHeaderText();
+            UpdateStatusPageText();
 
             GoToPageDialog.Title = Loc.Get("goto.title");
             GoToPageDialog.PrimaryButtonText = Loc.Get("goto.go");
@@ -378,28 +403,34 @@ namespace MicaPDF
             CoverPageItem.IsSelected = _isCoverPageMode;
             ContinuousItem.IsSelected = _isContinuousMode;
             OutlineItem.IsSelected = OutlineSplitView.IsPaneOpen;
+            UpdateCoverPageMenuVisibility();
         }
 
-        private void UpdatePageHeaderText()
+        private void UpdateCoverPageMenuVisibility()
+        {
+            CoverPageItem.Visibility = _isDoublePageMode &&
+                !_settings.HiddenMenuTags.Contains("coverpagemode")
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        private void UpdateStatusPageText()
         {
             if (_pdfDocument == null)
             {
-                PageHeaderTextBlock.Content = Loc.Format("nav.page", 1, 1);
-                SyncStatusPageFromHeader();
+                StatusPageText.Text = Loc.Format("nav.page", 1, 1);
                 return;
             }
 
-            SetPageHeaderForIndices(_currentPageIndex, null, showLeft: true, showRight: false);
-            SyncStatusPageFromHeader();
+            SetStatusPageForIndices(_currentPageIndex, null, showLeft: true, showRight: false);
         }
 
-        private void SetPageHeaderForIndices(uint leftIndex, uint? rightIndex, bool showLeft, bool showRight)
+        private void SetStatusPageForIndices(uint leftIndex, uint? rightIndex, bool showLeft, bool showRight)
         {
             var total = _pdfDocument?.PageCount ?? 0u;
             if (_pdfDocument == null || total == 0)
             {
-                PageHeaderTextBlock.Content = Loc.Format("nav.page", 1, 1);
-                SyncStatusPageFromHeader();
+                StatusPageText.Text = Loc.Format("nav.page", 1, 1);
                 return;
             }
 
@@ -411,13 +442,12 @@ namespace MicaPDF
                 if (useLabels)
                 {
                     var labels = $"{_pageLabels!.GetLabel(leftIndex)}-{_pageLabels.GetLabel(right)}";
-                    PageHeaderTextBlock.Content = Loc.Format("nav.pageLabeled", labels, phys, total);
+                    StatusPageText.Text = Loc.Format("nav.pageLabeled", labels, phys, total);
                 }
                 else
                 {
-                    PageHeaderTextBlock.Content = Loc.Format("nav.page", phys, total);
+                    StatusPageText.Text = Loc.Format("nav.page", phys, total);
                 }
-                SyncStatusPageFromHeader();
                 return;
             }
 
@@ -435,7 +465,7 @@ namespace MicaPDF
             var physical = index + 1;
             if (useLabels)
             {
-                PageHeaderTextBlock.Content = Loc.Format(
+                StatusPageText.Text = Loc.Format(
                     "nav.pageLabeled",
                     _pageLabels!.GetLabel(index),
                     physical,
@@ -443,9 +473,8 @@ namespace MicaPDF
             }
             else
             {
-                PageHeaderTextBlock.Content = Loc.Format("nav.page", physical, total);
+                StatusPageText.Text = Loc.Format("nav.page", physical, total);
             }
-            SyncStatusPageFromHeader();
         }
 
         private static void SetNavContent(NavigationViewItem item, string text)
@@ -457,6 +486,14 @@ namespace MicaPDF
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(item, text);
         }
 
+        private static void SetNavItem(NavigationViewItem item, string tag, string? titleOverride = null)
+        {
+            var title = titleOverride ?? Loc.MenuTitle(tag);
+            SetNavContent(item, title);
+            var hint = Loc.MenuHint(tag);
+            ToolTipService.SetToolTip(item, hint != null ? $"{title} ({hint})" : title);
+        }
+
         private void ApplyMenuCustomization()
         {
             foreach (var kv in _menuItemsByTag)
@@ -466,37 +503,48 @@ namespace MicaPDF
                     : Visibility.Visible;
             }
 
-            // Reorder known items while keeping separators/headers in place as much as possible.
             var tagged = NavView.MenuItems.OfType<NavigationViewItem>()
                 .Where(i => i.Tag is string)
                 .ToDictionary(i => (string)i.Tag!);
 
-            var insertIndex = 0;
-            foreach (var tag in _settings.MenuOrder)
+            var headers = new[]
             {
-                if (!tagged.TryGetValue(tag, out var item)) continue;
-                var current = NavView.MenuItems.IndexOf(item);
-                if (current < 0) continue;
-                while (insertIndex < NavView.MenuItems.Count &&
-                       NavView.MenuItems[insertIndex] is not NavigationViewItem)
+                FileSectionHeader,
+                ZoomSectionHeader,
+                PagesSectionHeader,
+                AnnotationsSectionHeader
+            };
+
+            for (var section = 0; section < MenuSectionTags.Length; section++)
+            {
+                var sectionTags = MenuSectionTags[section];
+                var header = headers[section];
+                var headerIndex = NavView.MenuItems.IndexOf(header);
+                if (headerIndex < 0) continue;
+
+                var orderedTags = _settings.MenuOrder
+                    .Where(sectionTags.Contains)
+                    .ToList();
+                foreach (var tag in sectionTags)
                 {
-                    insertIndex++;
+                    if (!orderedTags.Contains(tag))
+                        orderedTags.Add(tag);
                 }
 
-                if (current != insertIndex)
-                {
-                    NavView.MenuItems.RemoveAt(current);
-                    if (insertIndex > current) insertIndex--;
-                    NavView.MenuItems.Insert(Math.Min(insertIndex, NavView.MenuItems.Count), item);
-                }
+                var sectionItems = orderedTags
+                    .Where(tagged.ContainsKey)
+                    .Select(tag => tagged[tag])
+                    .ToList();
 
-                insertIndex++;
+                foreach (var item in sectionItems)
+                    NavView.MenuItems.Remove(item);
+
+                var insertAt = headerIndex + 1;
+                foreach (var item in sectionItems)
+                    NavView.MenuItems.Insert(insertAt++, item);
             }
 
-            if (_isDoublePageMode)
-                CoverPageItem.Visibility = _settings.HiddenMenuTags.Contains("coverpagemode")
-                    ? Visibility.Collapsed
-                    : Visibility.Visible;
+            UpdateCoverPageMenuVisibility();
         }
 
         private async Task LoadFileFromCommandLine()
@@ -600,7 +648,10 @@ namespace MicaPDF
             OutlineSplitView.IsPaneOpen = open;
             OutlineItem.IsSelected = open;
             SaveOutlinePaneState(open);
-            RefreshOutlineEmptyState();
+            if (open)
+                await EnsureOutlineLoadedAsync();
+            else
+                RefreshOutlineEmptyState();
             await Task.CompletedTask;
         }
 
@@ -661,7 +712,7 @@ namespace MicaPDF
             if (_isContinuousMode)
             {
                 ScrollToCurrentPage();
-                UpdatePageHeaderText();
+                UpdateStatusPageText();
             }
             else
             {
@@ -706,9 +757,66 @@ namespace MicaPDF
             {
                 if (_pdfDocument != null)
                 {
+                    ShowViewerContent();
                     ShowFindBar();
                     e.Handled = true;
                 }
+                return;
+            }
+
+            if (ctrl && !shift && e.Key == VirtualKey.O)
+            {
+                ShowViewerContent();
+                await InvokeMenuActionAsync("open");
+                e.Handled = true;
+                return;
+            }
+
+            if (ctrl && !shift && e.Key == VirtualKey.P)
+            {
+                ShowViewerContent();
+                await InvokeMenuActionAsync("print");
+                e.Handled = true;
+                return;
+            }
+
+            if (ctrl && !shift && e.Key == VirtualKey.G)
+            {
+                ShowViewerContent();
+                await InvokeMenuActionAsync("gotopage");
+                e.Handled = true;
+                return;
+            }
+
+            if (ctrl && !shift && e.Key == VirtualKey.E)
+            {
+                ShowViewerContent();
+                await InvokeMenuActionAsync("edit");
+                e.Handled = true;
+                return;
+            }
+
+            if (ctrl && (e.Key == VirtualKey.Add || e.Key == (VirtualKey)187))
+            {
+                ShowViewerContent();
+                await InvokeMenuActionAsync("zoomin");
+                e.Handled = true;
+                return;
+            }
+
+            if (ctrl && (e.Key == VirtualKey.Subtract || e.Key == (VirtualKey)189))
+            {
+                ShowViewerContent();
+                await InvokeMenuActionAsync("zoomout");
+                e.Handled = true;
+                return;
+            }
+
+            if (ctrl && !shift && e.Key == VirtualKey.Number0)
+            {
+                ShowViewerContent();
+                await InvokeMenuActionAsync("zoomreset");
+                e.Handled = true;
                 return;
             }
 
@@ -790,7 +898,6 @@ namespace MicaPDF
                 return;
             }
 
-            // Any other menu action leaves settings and returns to the document.
             ShowViewerContent();
             var tag = args.InvokedItemContainer?.Tag?.ToString();
             if (!string.IsNullOrEmpty(tag) &&
@@ -802,6 +909,14 @@ namespace MicaPDF
                 RefreshModeLabels();
                 return;
             }
+
+            await InvokeMenuActionAsync(tag);
+        }
+
+        private async Task InvokeMenuActionAsync(string? tag)
+        {
+            if (string.IsNullOrEmpty(tag))
+                return;
 
             switch (tag)
             {
@@ -861,13 +976,23 @@ namespace MicaPDF
             RefreshModeLabels();
         }
 
+        private void AppTitleBar_PaneToggleRequested(TitleBar sender, object args)
+        {
+            NavView.IsPaneOpen = !NavView.IsPaneOpen;
+        }
+
+        private void AppTitleBar_BackRequested(TitleBar sender, object args)
+        {
+            ShowViewerContent();
+        }
+
         private void ApplyThemeToWindow()
         {
             if (Content is FrameworkElement root)
                 root.RequestedTheme = _settings.Theme;
             RootGrid.RequestedTheme = _settings.Theme;
             NavView.RequestedTheme = _settings.Theme;
-            TitleBarHost.RequestedTheme = _settings.Theme;
+            AppTitleBar.RequestedTheme = _settings.Theme;
 
             var hWnd = WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
@@ -915,23 +1040,21 @@ namespace MicaPDF
             {
                 case "Top":
                     NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.Top;
-                    TitleBarHost.ColumnDefinitions[0].Width = new GridLength(0);
                     break;
                 case "Right":
                     NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.Left;
                     NavView.FlowDirection = FlowDirection.RightToLeft;
                     NavContentRoot.FlowDirection = FlowDirection.LeftToRight;
-                    TitleBarHost.ColumnDefinitions[0].Width = new GridLength(0);
                     break;
                 case "LeftCompact":
                     NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.LeftCompact;
-                    TitleBarHost.ColumnDefinitions[0].Width = new GridLength(48);
                     break;
                 default:
                     NavView.PaneDisplayMode = NavigationViewPaneDisplayMode.Left;
-                    TitleBarHost.ColumnDefinitions[0].Width = new GridLength(48);
                     break;
             }
+
+            AppTitleBar.IsPaneToggleButtonVisible = _settings.MenuPosition != "Top";
 
             foreach (var item in NavView.MenuItems.OfType<FrameworkElement>())
                 item.FlowDirection = FlowDirection.LeftToRight;
@@ -942,8 +1065,8 @@ namespace MicaPDF
             ViewerPanel.Visibility = Visibility.Collapsed;
             WelcomePanel.Visibility = Visibility.Collapsed;
             SettingsHost.Visibility = Visibility.Visible;
-            NavView.IsBackButtonVisible = NavigationViewBackButtonVisible.Visible;
-            NavView.IsBackEnabled = true;
+            AppTitleBar.IsBackButtonVisible = true;
+            AppTitleBar.IsBackButtonEnabled = true;
             AppSettingsPanel.LoadSettings(_settings);
         }
 
@@ -951,8 +1074,8 @@ namespace MicaPDF
         {
             SettingsHost.Visibility = Visibility.Collapsed;
             ViewerPanel.Visibility = Visibility.Visible;
-            NavView.IsBackButtonVisible = NavigationViewBackButtonVisible.Collapsed;
-            NavView.IsBackEnabled = false;
+            AppTitleBar.IsBackButtonVisible = false;
+            AppTitleBar.IsBackButtonEnabled = false;
             if (_pdfDocument == null)
                 WelcomePanel.Visibility = Visibility.Visible;
         }
@@ -961,6 +1084,7 @@ namespace MicaPDF
         {
             PersistCurrentSession();
             FlushRecentSave();
+            _indexLoadCts?.Cancel();
             if (_currentFile?.Path is { } path)
                 await AnnotationSidecarStore.SaveAsync(path, _annotations);
 
@@ -1041,8 +1165,7 @@ namespace MicaPDF
             titleBar.ButtonHoverBackgroundColor = Microsoft.UI.ColorHelper.FromArgb(20, 255, 255, 255);
             titleBar.ButtonPressedBackgroundColor = Microsoft.UI.ColorHelper.FromArgb(30, 255, 255, 255);
 
-            // Leave the left 48px free for the NavigationView pane toggle.
-            SetTitleBar(TitleBarDragElement);
+            SetTitleBar(AppTitleBar);
         }
 
         private void SetupMicaBackground()
@@ -1099,7 +1222,7 @@ namespace MicaPDF
             if (_currentFile?.Path is not { } path)
                 return;
 
-            _recentFiles.UpdateSession(path, _currentPageIndex, _currentZoom);
+            _recentFiles.UpdateSession(path, _currentPageIndex, _currentZoom, _settings.MaxZoomPercent);
             ScheduleRecentSave();
         }
 
@@ -1140,7 +1263,7 @@ namespace MicaPDF
                 var coverPath = _recentFiles.GetCoverPath(entry);
                 if (coverPath != null)
                 {
-                    cover = new BitmapImage(new Uri(coverPath)) { DecodePixelWidth = 1120 };
+                    cover = GetCachedCoverImage(coverPath);
                 }
 
                 items.Add(new RecentFileDisplayItem
@@ -1194,6 +1317,9 @@ namespace MicaPDF
 
         private async Task OpenFileDialog()
         {
+            // #region agent log
+            DbgSession.Log("H4", "MainWindow.OpenFileDialog", "open dialog invoked");
+            // #endregion
             try
             {
                 var picker = new FileOpenPicker();
@@ -1220,19 +1346,23 @@ namespace MicaPDF
             var recentEntry = restoreSession ? _recentFiles.Find(file.Path) : null;
 
             ShowLoading(Loc.Get("loading.opening"));
+            LoadDiagnostics? loadDiag = null;
             try
             {
-                var pdfBytes = await PdfPigServices.ReadBytesAsync(file);
-
                 PdfDocument? loaded = null;
                 StorageFile workingFile = file;
-                try
+                byte[]? pdfBytes = null;
+
+                using (LoadDiagnostics.Step("nativeOpen"))
                 {
-                    loaded = await PdfDocument.LoadFromFileAsync(file);
-                }
-                catch (Exception ex)
-                {
-                    AppLog.Warn($"PDF open requires password or failed: {ex.Message}");
+                    try
+                    {
+                        loaded = await PdfDocument.LoadFromFileAsync(file);
+                    }
+                    catch (Exception ex)
+                    {
+                        AppLog.Warn($"PDF open requires password or failed: {ex.Message}");
+                    }
                 }
 
                 if (loaded == null)
@@ -1246,18 +1376,21 @@ namespace MicaPDF
                     }
 
                     ShowLoading(Loc.Get("loading.opening"));
-                    var (doc, work, temp) = await PasswordPdfOpener.TryOpenAsync(file, password);
-                    if (doc == null)
+                    using (LoadDiagnostics.Step("passwordOpen"))
                     {
-                        SetStatusMessage(Loc.Get("dialog.password.failed"));
-                        AppLog.Warn("Password rejected or decrypt failed");
-                        return;
-                    }
+                        var (doc, work, temp) = await PasswordPdfOpener.TryOpenAsync(file, password);
+                        if (doc == null)
+                        {
+                            SetStatusMessage(Loc.Get("dialog.password.failed"));
+                            AppLog.Warn("Password rejected or decrypt failed");
+                            return;
+                        }
 
-                    loaded = doc;
-                    workingFile = work ?? file;
-                    _decryptedTempPath = temp;
-                    pdfBytes = await PdfPigServices.ReadBytesAsync(workingFile);
+                        loaded = doc;
+                        workingFile = work ?? file;
+                        _decryptedTempPath = temp;
+                        pdfBytes = await PdfPigServices.ReadBytesAsync(workingFile);
+                    }
                 }
 
                 _pdfDocument = loaded;
@@ -1267,11 +1400,16 @@ namespace MicaPDF
                     return;
                 }
 
+                loadDiag = LoadDiagnostics.BeginLoad(
+                    file.Name,
+                    pdfBytes?.LongLength ?? new FileInfo(workingFile.Path).Length,
+                    _pdfDocument.PageCount);
+
                 _currentFile = file;
                 if (recentEntry != null)
                 {
                     _currentPageIndex = ViewerSession.ClampPageIndex(recentEntry.PageIndex, _pdfDocument.PageCount);
-                    _currentZoom = ViewerSession.ClampZoom(recentEntry.Zoom);
+                    _currentZoom = ViewerSession.ClampZoom(recentEntry.Zoom, _settings.MaxZoomPercent);
                 }
                 else
                 {
@@ -1286,51 +1424,59 @@ namespace MicaPDF
                 WelcomePanel.Visibility = Visibility.Collapsed;
                 SettingsHost.Visibility = Visibility.Collapsed;
                 ViewerPanel.Visibility = Visibility.Visible;
+                ResetDocumentCaches();
                 _pageCache.Clear();
                 _annotations.Clear();
                 _history.Clear();
-                await AnnotationSidecarStore.TryLoadAsync(file.Path, _annotations);
+
+                using (LoadDiagnostics.Step("sidecar"))
+                {
+                    await AnnotationSidecarStore.TryLoadAsync(file.Path, _annotations);
+                }
+
                 _pdfOutline = null;
                 OutlineTreeView.RootNodes.Clear();
                 RefreshOutlineEmptyState();
-                _pageLabels = PdfPageLabels.LoadFromBytes(pdfBytes, (int)_pdfDocument.PageCount);
 
-                var sizes = new Dictionary<uint, Size>();
-                for (uint i = 0; i < _pdfDocument.PageCount; i++)
-                    sizes[i] = GetPageSize(i);
+                using (LoadDiagnostics.Step("labels"))
+                {
+                    _pageLabels = PdfPageLabels.LoadFromPath(workingFile.Path, (int)_pdfDocument.PageCount);
+                }
 
-                var bytesCopy = pdfBytes;
-                var sizesCopy = sizes;
-                var pigResult = await Task.Run(() => PdfPigServices.LoadTextAndOutline(bytesCopy, sizesCopy));
-                (_textIndex, _pdfOutline) = pigResult;
-
-                PopulateOutlineTree();
-
-                ApplyOutlinePaneState();
+                CachePageSize(_currentPageIndex);
+                _textIndexSourcePath = workingFile.Path;
+                _textIndex = PdfTextIndex.CreateLazy(workingFile.Path, _pageSizes);
 
                 BindAnnotationOverlays();
                 SetToolMode(_currentTool);
                 CloseFindBar();
                 _rasterZoom = _currentZoom;
+                UpdateScrollViewerZoomLimits();
 
-                if (_isContinuousMode)
+                using (LoadDiagnostics.Step("firstRender"))
                 {
-                    await BuildContinuousLayoutAsync();
-                    if (recentEntry != null)
-                        ScrollToCurrentPage();
-                }
-                else
-                {
-                    await RenderCurrentPage();
+                    if (_isContinuousMode)
+                    {
+                        await BuildContinuousLayoutAsync();
+                        if (recentEntry != null)
+                            ScrollToCurrentPage();
+                    }
+                    else
+                    {
+                        await RenderCurrentPage();
+                    }
                 }
 
-                _recentFiles.RecordOpened(file.Path, _currentPageIndex, _currentZoom);
+                _recentFiles.RecordOpened(file.Path, _currentPageIndex, _currentZoom, _settings.MaxZoomPercent);
                 FlushRecentSave();
                 RefreshRecentFilesUi();
                 _ = EnsureCoverAndRefreshAsync();
 
                 SetStatusMessage(Loc.Format("status.fileLoaded", file.Name));
                 AppLog.Info($"Opened PDF: {file.Name} ({_pdfDocument.PageCount} pages)");
+
+                _indexLoadCts = new CancellationTokenSource();
+                _ = LoadDocumentIndexInBackgroundAsync(workingFile.Path, _indexLoadCts.Token);
             }
             catch (Exception ex)
             {
@@ -1340,6 +1486,13 @@ namespace MicaPDF
             finally
             {
                 HideLoading();
+                loadDiag?.Dispose();
+                var wsMb = LoadDiagnostics.GetWorkingSetMb();
+                LoadDiagnostics.Complete(wsMb);
+                // #region agent log
+                DbgSession.Log("H5", "MainWindow.LoadPdfFile", "load complete",
+                    new { wsMb, zoom = _currentZoom, rasterZoom = _rasterZoom, maxZoomPercent = _settings.MaxZoomPercent });
+                // #endregion
             }
         }
 
@@ -1358,18 +1511,49 @@ namespace MicaPDF
 
             try
             {
+                var (destW, destH) = GetRasterDestinationSize(pageIndex);
+                var estimatedBytes = RasterSizeCalculator.EstimateRgbaBytes(destW, destH);
+                var pageSize = GetPageSize(pageIndex);
+                // #region agent log
+                DbgSession.Log("H2", "MainWindow.RenderPageBitmapAsync", "raster",
+                    new
+                    {
+                        pageIndex,
+                        _currentZoom,
+                        ZoomKey,
+                        destW,
+                        destH,
+                        estimatedBytes,
+                        pageDipW = pageSize.Width,
+                        pageDipH = pageSize.Height,
+                        factor = PdfScrollViewer.ZoomFactor
+                    });
+                // #endregion
+
                 using var page = _pdfDocument.GetPage(pageIndex);
                 var renderOptions = new PdfPageRenderOptions
                 {
-                    DestinationWidth = (uint)Math.Max(1, page.Size.Width * _currentZoom * 2),
-                    DestinationHeight = (uint)Math.Max(1, page.Size.Height * _currentZoom * 2)
+                    DestinationWidth = destW,
+                    DestinationHeight = destH
                 };
 
                 using var stream = new InMemoryRandomAccessStream();
                 await page.RenderToStreamAsync(stream, renderOptions);
                 var bitmapImage = new BitmapImage();
                 await bitmapImage.SetSourceAsync(stream);
-                _pageCache.Set(pageIndex, ZoomKey, bitmapImage);
+                _pageCache.Set(pageIndex, ZoomKey, bitmapImage, estimatedBytes);
+                // #region agent log
+                DbgSession.Log("H7", "MainWindow.RenderPageBitmapAsync", "cache after render",
+                    new
+                    {
+                        wsMb = LoadDiagnostics.GetWorkingSetMb(),
+                        cacheBytes = _pageCache.CurrentBytes,
+                        cacheBudget = _pageCache.ByteBudget,
+                        destW,
+                        destH,
+                        estimatedBytes
+                    }, "post-fix");
+                // #endregion
                 return bitmapImage;
             }
             finally
@@ -1439,7 +1623,7 @@ namespace MicaPDF
                     }
 
                     _currentPageIndex = showLeft ? leftIndex : rightIndex;
-                    SetPageHeaderForIndices(
+                    SetStatusPageForIndices(
                         leftIndex,
                         rightIndex < _pdfDocument.PageCount ? rightIndex : null,
                         showLeft,
@@ -1449,7 +1633,7 @@ namespace MicaPDF
                 {
                     PdfImage.Source = await RenderPageBitmapAsync(_currentPageIndex, showLoadingOnMiss);
                     ConfigureOverlay(PdfAnnotationOverlay, _currentPageIndex);
-                    UpdatePageHeaderText();
+                    UpdateStatusPageText();
                 }
             }
             catch (Exception ex)
@@ -1481,7 +1665,7 @@ namespace MicaPDF
             {
                 _currentPageIndex--;
                 ScrollToCurrentPage();
-                UpdatePageHeaderText();
+                UpdateStatusPageText();
                 PersistCurrentSession();
                 return;
             }
@@ -1516,7 +1700,7 @@ namespace MicaPDF
             {
                 _currentPageIndex++;
                 ScrollToCurrentPage();
-                UpdatePageHeaderText();
+                UpdateStatusPageText();
                 PersistCurrentSession();
                 return;
             }
@@ -1607,12 +1791,13 @@ namespace MicaPDF
 
         private void ScrollToCurrentPage()
         {
-            if (!_isContinuousMode || _currentPageIndex >= _continuousPages.Count) return;
-            _continuousPages[(int)_currentPageIndex].Root.StartBringIntoView(new BringIntoViewOptions
-            {
-                AnimationDesired = true,
-                VerticalAlignmentRatio = 0
-            });
+            if (!_isContinuousMode || _currentPageIndex >= _continuousPageItems.Count) return;
+
+            double y = 0;
+            for (var i = 0; i < _currentPageIndex; i++)
+                y += _continuousPageItems[(int)i].LayoutHeight;
+
+            PdfScrollViewer.ChangeView(null, y, null, false);
             _ = RenderVisibleContinuousPagesAsync();
         }
 
@@ -1663,7 +1848,7 @@ namespace MicaPDF
             if (_isContinuousMode)
             {
                 ScrollToCurrentPage();
-                UpdatePageHeaderText();
+                UpdateStatusPageText();
             }
             else
             {
@@ -1698,7 +1883,7 @@ namespace MicaPDF
             PdfAnnotationOverlay.SetTool(mode);
             PdfAnnotationOverlayLeft.SetTool(mode);
             PdfAnnotationOverlayRight.SetTool(mode);
-            foreach (var host in _continuousPages)
+            foreach (var host in _realizedContinuousHosts.Values)
                 host.Overlay?.SetTool(mode);
         }
 
@@ -1741,7 +1926,10 @@ namespace MicaPDF
             if (_isContinuousMode)
             {
                 _isContinuousMode = false;
-                ContinuousPageContainer.Visibility = Visibility.Collapsed;
+                ContinuousPagesRepeater.Visibility = Visibility.Collapsed;
+                _continuousPageItems.Clear();
+                _realizedContinuousHosts.Clear();
+                ContinuousPagesRepeater.ItemsSource = null;
                 DoublePageItem.IsEnabled = true;
             }
 
@@ -1750,9 +1938,6 @@ namespace MicaPDF
             {
                 SinglePageContainer.Visibility = Visibility.Collapsed;
                 DoublePageContainer.Visibility = Visibility.Visible;
-                CoverPageItem.Visibility = _settings.HiddenMenuTags.Contains("coverpagemode")
-                    ? Visibility.Collapsed
-                    : Visibility.Visible;
 
                 if (_isCoverPageMode)
                 {
@@ -1767,7 +1952,7 @@ namespace MicaPDF
             {
                 SinglePageContainer.Visibility = Visibility.Visible;
                 DoublePageContainer.Visibility = Visibility.Collapsed;
-                CoverPageItem.Visibility = Visibility.Collapsed;
+                _isCoverPageMode = false;
             }
 
             RefreshModeLabels();
@@ -1776,6 +1961,9 @@ namespace MicaPDF
 
         private async Task ToggleCoverPageMode()
         {
+            if (!_isDoublePageMode)
+                return;
+
             _isCoverPageMode = !_isCoverPageMode;
             if (_isDoublePageMode)
             {
@@ -1802,8 +1990,8 @@ namespace MicaPDF
                 _isDoublePageMode = false;
                 SinglePageContainer.Visibility = Visibility.Collapsed;
                 DoublePageContainer.Visibility = Visibility.Collapsed;
-                ContinuousPageContainer.Visibility = Visibility.Visible;
-                CoverPageItem.Visibility = Visibility.Collapsed;
+                ContinuousPagesRepeater.Visibility = Visibility.Visible;
+                _isCoverPageMode = false;
                 DoublePageItem.IsEnabled = false;
                 ZoomInItem.IsEnabled = true;
                 ZoomOutItem.IsEnabled = true;
@@ -1817,9 +2005,10 @@ namespace MicaPDF
                 DoublePageItem.IsEnabled = true;
                 SinglePageContainer.Visibility = Visibility.Visible;
                 DoublePageContainer.Visibility = Visibility.Collapsed;
-                ContinuousPageContainer.Visibility = Visibility.Collapsed;
-                _continuousPages.Clear();
-                ContinuousPageContainer.Children.Clear();
+                ContinuousPagesRepeater.Visibility = Visibility.Collapsed;
+                _continuousPageItems.Clear();
+                _realizedContinuousHosts.Clear();
+                ContinuousPagesRepeater.ItemsSource = null;
                 RefreshModeLabels();
                 await RenderCurrentPage();
             }
@@ -1831,39 +2020,28 @@ namespace MicaPDF
             ShowLoading(Loc.Get("loading.continuous"));
             try
             {
-                ContinuousPageContainer.Children.Clear();
-                _continuousPages.Clear();
+                _continuousPageItems.Clear();
+                _realizedContinuousHosts.Clear();
 
                 for (uint i = 0; i < _pdfDocument.PageCount; i++)
                 {
-                    using var page = _pdfDocument.GetPage(i);
-                    double width = Math.Max(1, page.Size.Width * _currentZoom * 2);
-                    double height = Math.Max(1, page.Size.Height * _currentZoom * 2);
+                    if (!_pageSizes.ContainsKey(i))
+                        CachePageSize(i);
 
-                    var image = new Image { Stretch = Stretch.Fill, Width = width, Height = height };
-                    var root = new Grid
+                    var size = GetPageSize(i);
+                    var (displayW, displayH) = GetDisplayDimensions(i);
+                    _continuousPageItems.Add(new ContinuousPageItem
                     {
-                        Width = width,
-                        Height = height,
-                        Margin = new Thickness(0, 0, 0, 16),
-                        Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(20, 128, 128, 128))
-                    };
-                    root.Children.Add(image);
-
-                    ContinuousPageContainer.Children.Add(root);
-                    _continuousPages.Add(new ContinuousPageHost
-                    {
-                        Index = i,
-                        Root = root,
-                        Image = image,
-                        Overlay = null,
-                        DisplayHeight = height + 16,
-                        PageWidthDip = page.Size.Width,
-                        PageHeightDip = page.Size.Height
+                        PageIndex = i,
+                        DisplayWidth = displayW,
+                        DisplayHeight = displayH,
+                        PageWidthDip = size.Width,
+                        PageHeightDip = size.Height
                     });
                 }
 
-                UpdatePageHeaderText();
+                ContinuousPagesRepeater.ItemsSource = _continuousPageItems;
+                UpdateStatusPageText();
                 await RenderVisibleContinuousPagesAsync();
                 ScrollToCurrentPage();
             }
@@ -1871,33 +2049,6 @@ namespace MicaPDF
             {
                 HideLoading();
             }
-        }
-
-        private AnnotationOverlay EnsureContinuousOverlay(ContinuousPageHost host)
-        {
-            if (host.Overlay != null) return host.Overlay;
-
-            var overlay = new AnnotationOverlay
-            {
-                Width = host.Root.Width,
-                Height = host.Root.Height,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            overlay.Attach(_annotations, host.Index, host.PageWidthDip, host.PageHeightDip);
-            overlay.SetHistory(_history);
-            overlay.SetTextIndex(_textIndex);
-            overlay.SetTool(_currentTool);
-            overlay.SelectionChanged += OnAnnotationSelectionChanged;
-            overlay.AnnotationsChanged += (_, _) => ScheduleAnnotationAutosave();
-            ApplyPenAttributesToOverlay(overlay);
-            overlay.DefaultFontSize = _textFontSize;
-            overlay.DefaultBold = _textBold;
-            overlay.DefaultItalic = _textItalic;
-            overlay.DefaultTextColor = _textColor;
-            host.Root.Children.Add(overlay);
-            host.Overlay = overlay;
-            return overlay;
         }
 
         private async void PdfScrollViewer_ViewChanged(object sender, ScrollViewerViewChangedEventArgs e)
@@ -1919,22 +2070,24 @@ namespace MicaPDF
             if (_isContinuousMode && !e.IsIntermediate)
             {
                 await RenderVisibleContinuousPagesAsync();
-                UpdateContinuousPageHeaderFromScroll();
+                UpdateContinuousStatusPageFromScroll();
             }
         }
 
-        private void UpdateContinuousPageHeaderFromScroll()
+        private void UpdateContinuousStatusPageFromScroll()
         {
-            if (_pdfDocument == null || _continuousPages.Count == 0) return;
+            if (_pdfDocument == null || _continuousPageItems.Count == 0) return;
             double y = 0;
             double center = PdfScrollViewer.VerticalOffset + PdfScrollViewer.ViewportHeight / 3;
-            for (var i = 0; i < _continuousPages.Count; i++)
+            for (var i = 0; i < _continuousPageItems.Count; i++)
             {
-                var next = y + _continuousPages[i].DisplayHeight;
+                var next = y + _continuousPageItems[i].LayoutHeight;
                 if (center >= y && center < next)
                 {
-                    _currentPageIndex = (uint)i;
-                    UpdatePageHeaderText();
+                    var newIndex = _continuousPageItems[i].PageIndex;
+                    if (_currentPageIndex == newIndex) return;
+                    _currentPageIndex = newIndex;
+                    UpdateStatusPageText();
                     PersistCurrentSession();
                     break;
                 }
@@ -1944,7 +2097,7 @@ namespace MicaPDF
 
         private async Task RenderVisibleContinuousPagesAsync()
         {
-            if (_pdfDocument == null || _continuousPages.Count == 0 || _continuousRenderQueued) return;
+            if (_pdfDocument == null || _continuousPageItems.Count == 0 || _continuousRenderQueued) return;
             _continuousRenderQueued = true;
             try
             {
@@ -1952,38 +2105,32 @@ namespace MicaPDF
                 double top = PdfScrollViewer.VerticalOffset - PdfScrollViewer.ViewportHeight;
                 double bottom = PdfScrollViewer.VerticalOffset + PdfScrollViewer.ViewportHeight * 2;
                 double y = 0;
+                var toRender = new List<uint>();
 
-                for (var i = 0; i < _continuousPages.Count; i++)
+                foreach (var item in _continuousPageItems)
                 {
-                    var host = _continuousPages[i];
                     var pageTop = y;
-                    var pageBottom = y + host.DisplayHeight;
+                    var pageBottom = y + item.LayoutHeight;
                     var visible = pageBottom >= top && pageTop <= bottom;
 
-                    if (visible)
+                    if (visible &&
+                        _realizedContinuousHosts.TryGetValue(item.PageIndex, out var host) &&
+                        !host.Rendered)
                     {
-                        var overlay = EnsureContinuousOverlay(host);
-                        if (!host.Rendered)
-                        {
-                            host.Image.Source = await RenderPageBitmapAsync(host.Index);
-                            overlay.Refresh();
-                            host.Rendered = true;
-                        }
-                    }
-                    else if (host.Rendered &&
-                             (pageBottom < top - PdfScrollViewer.ViewportHeight * 2 ||
-                              pageTop > bottom + PdfScrollViewer.ViewportHeight * 2))
-                    {
-                        host.Image.Source = null;
-                        host.Rendered = false;
-                        if (host.Overlay != null)
-                        {
-                            host.Root.Children.Remove(host.Overlay);
-                            host.Overlay = null;
-                        }
+                        toRender.Add(item.PageIndex);
                     }
 
                     y = pageBottom;
+                }
+
+                await PrefetchPageBitmapsAsync(toRender);
+                foreach (var pageIndex in toRender)
+                {
+                    if (!_realizedContinuousHosts.TryGetValue(pageIndex, out var host)) continue;
+                    var overlay = EnsureContinuousOverlay(host);
+                    host.Image.Source = await RenderPageBitmapAsync(host.Index);
+                    overlay.Refresh();
+                    host.Rendered = true;
                 }
             }
             finally
@@ -2030,7 +2177,7 @@ namespace MicaPDF
             yield return PdfAnnotationOverlay;
             yield return PdfAnnotationOverlayLeft;
             yield return PdfAnnotationOverlayRight;
-            foreach (var host in _continuousPages)
+            foreach (var host in _realizedContinuousHosts.Values)
             {
                 if (host.Overlay != null)
                     yield return host.Overlay;
@@ -2042,7 +2189,7 @@ namespace MicaPDF
             ApplyPenAttributesToOverlay(PdfAnnotationOverlay);
             ApplyPenAttributesToOverlay(PdfAnnotationOverlayLeft);
             ApplyPenAttributesToOverlay(PdfAnnotationOverlayRight);
-            foreach (var host in _continuousPages)
+            foreach (var host in _realizedContinuousHosts.Values)
             {
                 if (host.Overlay != null)
                     ApplyPenAttributesToOverlay(host.Overlay);

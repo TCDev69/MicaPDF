@@ -25,24 +25,36 @@ namespace MicaPDF
             byte[] bytes,
             IReadOnlyDictionary<uint, Size> pageSizes)
         {
-            var index = new PdfTextIndex();
             PdfOutline? outline = null;
-
             try
             {
                 using var document = PdfDocument.Open(bytes);
-
                 if (document.TryGetBookmarks(out Bookmarks? bookmarks) && bookmarks.Roots.Count > 0)
                     outline = PdfOutline.FromBookmarks(bookmarks);
-
-                index.LoadFromDocument(document, pageSizes);
             }
             catch
             {
-                // Scanned PDFs, encryption, or parse failures: best-effort.
+                // Best-effort.
             }
 
+            var index = PdfTextIndex.LoadFromBytes(bytes, pageSizes);
             return (index, outline);
+        }
+
+        public static PdfOutline? LoadOutlineFromPath(string path)
+        {
+            try
+            {
+                using var document = PdfDocument.Open(path);
+                if (document.TryGetBookmarks(out Bookmarks? bookmarks) && bookmarks.Roots.Count > 0)
+                    return PdfOutline.FromBookmarks(bookmarks);
+            }
+            catch
+            {
+                // Best-effort.
+            }
+
+            return null;
         }
 
         public static async Task<byte[]> ReadBytesAsync(StorageFile file)

@@ -31,7 +31,8 @@ namespace MicaPDF
             double availableHeight,
             ZoomFitMode mode,
             double displayMultiplier = 2.0,
-            bool doublePage = false)
+            bool doublePage = false,
+            int maxZoomPercent = ZoomLimits.DefaultMaxZoomPercent)
         {
             if (pageWidthDip <= 0 || pageHeightDip <= 0) return 0.5;
             if (availableWidth <= 0 || availableHeight <= 0) return 0.5;
@@ -42,18 +43,22 @@ namespace MicaPDF
             var zoomY = availableHeight / (pageHeightDip * displayMultiplier);
 
             var zoom = mode == ZoomFitMode.Height ? zoomY : zoomX;
-            return Math.Clamp(zoom, 0.1, 5.0);
+            return Math.Clamp(zoom, 0.1, MaxZoomFromPercent(maxZoomPercent));
         }
+
+        private static double MaxZoomFromPercent(int maxZoomPercent) =>
+            ZoomLimits.MaxZoomFromPercent(maxZoomPercent);
 
         public static ZoomFitMode NextMode(ZoomFitMode current) =>
             current == ZoomFitMode.Height ? ZoomFitMode.Width : ZoomFitMode.Height;
 
         /// <summary>Snap to 25% grid for expensive re-rasterization.</summary>
-        public static double SnapToStep(double zoom, double step = ZoomStep)
+        public static double SnapToStep(double zoom, double step = ZoomStep, int maxZoomPercent = ZoomLimits.MaxMaxZoomPercent)
         {
             if (step <= 0) return zoom;
             var snapped = Math.Round(zoom / step) * step;
-            return Math.Clamp(snapped, 0.25, 5.0);
+            var maxZoom = MaxZoomFromPercent(maxZoomPercent);
+            return Math.Clamp(snapped, 0.25, maxZoom);
         }
     }
 }

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -32,12 +34,6 @@ namespace MicaPDF
                 AppLog.Info(message);
         }
 
-        private void SyncStatusPageFromHeader()
-        {
-            if (PageHeaderTextBlock.Content is string s)
-                StatusPageText.Text = s;
-        }
-
         private double GetDisplayedZoom() =>
             _currentZoom * Math.Max(0.01f, PdfScrollViewer.ZoomFactor);
 
@@ -50,16 +46,31 @@ namespace MicaPDF
             return 2.0 * scale;
         }
 
+        private double GetMaxZoom() => ZoomLimits.MaxZoomFromPercent(_settings.MaxZoomPercent);
+
+        private void UpdateScrollViewerZoomLimits()
+        {
+            var maxZoom = GetMaxZoom();
+            var headroom = maxZoom / Math.Max(0.25, _currentZoom);
+            PdfScrollViewer.MaxZoomFactor = (float)Math.Clamp(headroom, 1.5, 3.0);
+        }
+
         private void ApplyInteractiveZoom(double targetAbsoluteZoom)
         {
             if (_pdfDocument == null) return;
-            targetAbsoluteZoom = Math.Clamp(targetAbsoluteZoom, 0.25, 5.0);
+            var maxZoom = GetMaxZoom();
+            targetAbsoluteZoom = Math.Clamp(targetAbsoluteZoom, 0.25, maxZoom);
             var baseZoom = Math.Max(0.01, _currentZoom);
             var oldFactor = Math.Max(0.01f, PdfScrollViewer.ZoomFactor);
             var newFactor = (float)(targetAbsoluteZoom / baseZoom);
+            UpdateScrollViewerZoomLimits();
             newFactor = Math.Clamp(newFactor, PdfScrollViewer.MinZoomFactor, PdfScrollViewer.MaxZoomFactor);
 
             var projected = baseZoom * newFactor;
+            // #region agent log
+            DbgSession.Log("H1", "FindZoom.ApplyInteractiveZoom", "zoom step",
+                new { targetAbsoluteZoom, baseZoom, oldFactor, newFactor, projected, maxFactor = PdfScrollViewer.MaxZoomFactor });
+            // #endregion
             if (Math.Abs(projected - targetAbsoluteZoom) > 0.05 &&
                 (newFactor >= PdfScrollViewer.MaxZoomFactor - 0.01 || newFactor <= PdfScrollViewer.MinZoomFactor + 0.01))
             {
@@ -115,9 +126,15 @@ namespace MicaPDF
             try
             {
                 var factor = PdfScrollViewer.ZoomFactor;
-                var displayed = Math.Clamp(_currentZoom * factor, 0.25, 5.0);
+                var maxZoom = GetMaxZoom();
+                var displayed = Math.Clamp(_currentZoom * factor, 0.25, maxZoom);
                 var delta = Math.Abs(displayed - _rasterZoom);
                 var needsReload = delta >= ZoomFitCalculator.ZoomStep;
+
+                // #region agent log
+                DbgSession.Log("H3", "FindZoom.SettleZoomAsync", "settle",
+                    new { factor, displayed, _rasterZoom, delta, needsReload, _currentZoom });
+                // #endregion
 
                 var oldRaster = _rasterZoom;
                 var vw = PdfScrollViewer.ViewportWidth;
@@ -134,12 +151,13 @@ namespace MicaPDF
 
                 _currentZoom = displayed;
                 _rasterZoom = displayed;
+                UpdateScrollViewerZoomLimits();
                 var sizeRatio = displayed / Math.Max(0.01, oldRaster);
                 var newH = Math.Max(0, centerX * sizeRatio - vw / 2);
                 var newV = Math.Max(0, centerY * sizeRatio - vh / 2);
 
                 UpdateZoomUi(_currentZoom);
-                _pageCache.TrimDistantZoom(ZoomKey);
+                _pageCache.TrimDistantZoom(ZoomKey, PdfPageCache.DefaultTrimDistance);
 
                 // Warm cache while the old view stays stable (no factor change yet).
                 await PrefetchCurrentPageBitmapsAsync();
@@ -176,6 +194,7 @@ namespace MicaPDF
         {
             if (_pdfDocument == null || _isContinuousMode) return;
 
+            var pages = new List<uint>();
             if (_isDoublePageMode)
             {
                 uint leftIndex, rightIndex;
@@ -200,14 +219,16 @@ namespace MicaPDF
                 }
 
                 if (showLeft && leftIndex < _pdfDocument.PageCount)
-                    await RenderPageBitmapAsync(leftIndex, false);
+                    pages.Add(leftIndex);
                 if (showRight && rightIndex < _pdfDocument.PageCount)
-                    await RenderPageBitmapAsync(rightIndex, false);
+                    pages.Add(rightIndex);
             }
             else
             {
-                await RenderPageBitmapAsync(_currentPageIndex, false);
+                pages.Add(_currentPageIndex);
             }
+
+            await PrefetchPageBitmapsAsync(pages);
         }
 
         private async Task ZoomIn()
@@ -255,7 +276,7 @@ namespace MicaPDF
 
             var zoom = ZoomFitCalculator.Compute(
                 pageWidth, pageHeight, availableWidth, availableHeight,
-                mode, mul, _isDoublePageMode);
+                mode, mul, _isDoublePageMode, _settings.MaxZoomPercent);
 
             RefreshZoomFitLabel();
 
@@ -265,7 +286,7 @@ namespace MicaPDF
             PdfScrollViewer.ChangeView(null, null, 1f, true);
             _lastScrollZoom = 1f;
             UpdateZoomUi(_currentZoom);
-            _pageCache.TrimDistantZoom(ZoomKey);
+            _pageCache.TrimDistantZoom(ZoomKey, PdfPageCache.DefaultTrimDistance);
             await RefreshAfterZoomAsync(showLoading: false);
 
             PersistCurrentSession();
@@ -281,7 +302,7 @@ namespace MicaPDF
         {
             if (_isContinuousMode)
             {
-                if (_pdfDocument != null && _continuousPages.Count == (int)_pdfDocument.PageCount)
+                if (_pdfDocument != null && _continuousPageItems.Count == (int)_pdfDocument.PageCount)
                 {
                     ResizeContinuousHosts();
                     await RenderVisibleContinuousPagesAsync();
@@ -304,26 +325,59 @@ namespace MicaPDF
         private void ResizeContinuousHosts()
         {
             if (_pdfDocument == null) return;
-            for (var i = 0; i < _continuousPages.Count; i++)
+
+            double top = PdfScrollViewer.VerticalOffset - PdfScrollViewer.ViewportHeight;
+            double bottom = PdfScrollViewer.VerticalOffset + PdfScrollViewer.ViewportHeight * 2;
+            var updated = new List<ContinuousPageItem>();
+            double y = 0;
+
+            for (uint i = 0; i < _pdfDocument.PageCount; i++)
             {
-                using var page = _pdfDocument.GetPage((uint)i);
-                double width = Math.Max(1, page.Size.Width * _currentZoom * 2);
-                double height = Math.Max(1, page.Size.Height * _currentZoom * 2);
-                var host = _continuousPages[i];
-                host.Root.Width = width;
-                host.Root.Height = height;
-                host.Root.Margin = new Thickness(0, 0, 0, 16);
-                host.Image.Width = width;
-                host.Image.Height = height;
-                if (host.Overlay != null)
+                if (!_pageSizes.ContainsKey(i))
+                    CachePageSize(i);
+
+                var size = GetPageSize(i);
+                var (displayW, displayH) = GetDisplayDimensions(i);
+                var layoutHeight = displayH + 16;
+                var pageTop = y;
+                var pageBottom = y + layoutHeight;
+                var visible = pageBottom >= top && pageTop <= bottom;
+
+                updated.Add(new ContinuousPageItem
                 {
-                    host.Overlay.Width = width;
-                    host.Overlay.Height = height;
+                    PageIndex = i,
+                    DisplayWidth = displayW,
+                    DisplayHeight = displayH,
+                    PageWidthDip = size.Width,
+                    PageHeightDip = size.Height
+                });
+
+                if (_realizedContinuousHosts.TryGetValue(i, out var host))
+                {
+                    host.Root.Width = displayW;
+                    host.Root.Height = displayH;
+                    host.Image.Width = displayW;
+                    host.Image.Height = displayH;
+                    host.DisplayHeight = layoutHeight;
+                    if (host.Overlay != null)
+                    {
+                        host.Overlay.Width = displayW;
+                        host.Overlay.Height = displayH;
+                    }
+
+                    if (!visible)
+                    {
+                        host.Image.Source = null;
+                        host.Rendered = false;
+                    }
                 }
-                host.DisplayHeight = height + 16;
-                host.Image.Source = null;
-                host.Rendered = false;
+
+                y = pageBottom;
             }
+
+            _continuousPageItems.Clear();
+            foreach (var item in updated)
+                _continuousPageItems.Add(item);
         }
 
         private void ShowFindBar()
@@ -349,7 +403,7 @@ namespace MicaPDF
                 overlay.ClearSearchHighlight();
         }
 
-        private void RunFind(bool forward)
+        private async void RunFind(bool forward)
         {
             if (_textIndex == null || _pdfDocument == null)
             {
@@ -363,6 +417,19 @@ namespace MicaPDF
                 FindStatusText.Text = "";
                 ClearFindHighlights();
                 return;
+            }
+
+            if (_textIndex.IndexedPageCount < _pdfDocument.PageCount)
+            {
+                FindStatusText.Text = Loc.Get("find.indexing");
+                try
+                {
+                    await _textIndex.EnsureAllPagesIndexedAsync(_pdfDocument.PageCount);
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Warn($"Find indexing failed: {ex.Message}");
+                }
             }
 
             _findHits = PdfTextSearch.Find(_textIndex, query);
@@ -401,7 +468,7 @@ namespace MicaPDF
             }
 
             ApplyFindHighlightToVisibleOverlays(hit);
-            UpdatePageHeaderText();
+            UpdateStatusPageText();
             PersistCurrentSession();
         }
 
@@ -483,24 +550,27 @@ namespace MicaPDF
         {
             if (Content is not UIElement root) return;
 
-            var findAccel = new KeyboardAccelerator { Key = VirtualKey.F, Modifiers = VirtualKeyModifiers.Control };
-            findAccel.Invoked += (_, e) =>
-            {
-                if (_pdfDocument != null)
-                {
-                    ShowFindBar();
-                    e.Handled = true;
-                }
-            };
-            root.KeyboardAccelerators.Add(findAccel);
+            // Ctrl+O/P/F/G/E and zoom keys are handled in Window_KeyDown to avoid duplicate dialogs.
+            AddMenuAccelerator(root, VirtualKey.S, VirtualKeyModifiers.Control, "savewithannotations");
+        }
 
-            var saveAccel = new KeyboardAccelerator { Key = VirtualKey.S, Modifiers = VirtualKeyModifiers.Control };
-            saveAccel.Invoked += (s, e) =>
+        private void AddMenuAccelerator(
+            UIElement root,
+            VirtualKey key,
+            VirtualKeyModifiers modifiers,
+            string tag,
+            bool requiresPdf = false)
+        {
+            var accel = new KeyboardAccelerator { Key = key, Modifiers = modifiers };
+            accel.Invoked += (sender, e) =>
             {
+                if (requiresPdf && _pdfDocument == null)
+                    return;
                 e.Handled = true;
-                var _ = SavePdfWithAnnotations();
+                ShowViewerContent();
+                _ = InvokeMenuActionAsync(tag);
             };
-            root.KeyboardAccelerators.Add(saveAccel);
+            root.KeyboardAccelerators.Add(accel);
         }
     }
 }

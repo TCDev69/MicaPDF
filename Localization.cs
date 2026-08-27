@@ -136,5 +136,12 @@ namespace MicaPDF
             string.Format(CultureInfo.CurrentUICulture, Get(key), args);
 
         public static string MenuTitle(string tag) => Get("menu." + tag);
+
+        public static string? MenuHint(string tag)
+        {
+            var key = "menu." + tag + ".hint";
+            var value = Get(key);
+            return string.Equals(value, key, StringComparison.Ordinal) ? null : value;
+        }
     }
 }

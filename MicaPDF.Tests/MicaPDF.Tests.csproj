@@ -1,9 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>x64;ARM64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,9 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\ZoomFitCalculator.cs" Link="ZoomFitCalculator.cs" />
-    <Compile Include="..\ViewerSession.cs" Link="ViewerSession.cs" />
-    <Compile Include="..\AppLog.cs" Link="AppLog.cs" />
-    <Compile Include="..\AnnotationKeys.cs" Link="AnnotationKeys.cs" />
+    <ProjectReference Include="..\MicaPDF.csproj" />
   </ItemGroup>
 </Project>

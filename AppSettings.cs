@@ -55,6 +55,8 @@ namespace MicaPDF
         public string FloatingBarPosition { get; set; } = "Bottom";
         public bool AutoUpdate { get; set; } = true;
         public bool WheelZoomRequiresCtrl { get; set; } = true;
+        /// <summary>Maximum viewer zoom as percent (50–500). Default 150%.</summary>
+        public int MaxZoomPercent { get; set; } = ZoomLimits.DefaultMaxZoomPercent;
         public bool ConfirmClearAnnotations { get; set; } = true;
         public string GitHubRepository { get; set; } = DefaultGitHubRepository;
         public Color PenColor { get; set; } = Color.FromArgb(255, 0, 0, 0);
@@ -116,6 +118,8 @@ namespace MicaPDF
                     settings.FloatingBarPosition = dto.FloatingBarPosition;
                 settings.AutoUpdate = dto.AutoUpdate ?? true;
                 settings.WheelZoomRequiresCtrl = dto.WheelZoomRequiresCtrl;
+                if (dto.MaxZoomPercent is > 0)
+                    settings.MaxZoomPercent = ZoomLimits.SanitizeMaxZoomPercent(dto.MaxZoomPercent);
                 settings.ConfirmClearAnnotations = dto.ConfirmClearAnnotations;
                 if (!string.IsNullOrWhiteSpace(dto.GitHubRepository))
                     settings.GitHubRepository = dto.GitHubRepository;
@@ -199,6 +203,7 @@ namespace MicaPDF
                 FloatingBarPosition = FloatingBarPosition,
                 AutoUpdate = AutoUpdate,
                 WheelZoomRequiresCtrl = WheelZoomRequiresCtrl,
+                MaxZoomPercent = MaxZoomPercent,
                 ConfirmClearAnnotations = ConfirmClearAnnotations,
                 GitHubRepository = GitHubRepository,
                 PenSize = PenSize,
@@ -227,6 +232,7 @@ namespace MicaPDF
             public string? PaneDisplayMode { get; set; }
             public bool? AutoUpdate { get; set; }
             public bool WheelZoomRequiresCtrl { get; set; } = true;
+            public int MaxZoomPercent { get; set; } = ZoomLimits.DefaultMaxZoomPercent;
             public bool ConfirmClearAnnotations { get; set; } = true;
             public string GitHubRepository { get; set; } = DefaultGitHubRepository;
             public float PenSize { get; set; } = 3f;

@@ -75,7 +75,7 @@ namespace MicaPDF
                 string.Equals(e.Path, normalized, StringComparison.OrdinalIgnoreCase));
         }
 
-        public void UpdateSession(string path, uint pageIndex, double zoom)
+        public void UpdateSession(string path, uint pageIndex, double zoom, int maxZoomPercent = ZoomLimits.DefaultMaxZoomPercent)
         {
             var normalized = NormalizePath(path);
             var entry = _entries.FirstOrDefault(e =>
@@ -84,11 +84,11 @@ namespace MicaPDF
                 return;
 
             entry.PageIndex = pageIndex;
-            entry.Zoom = Math.Clamp(zoom, 0.25, 5.0);
+            entry.Zoom = ZoomLimits.ClampZoom(zoom, maxZoomPercent);
             entry.LastOpenedUtc = DateTime.UtcNow;
         }
 
-        public void RecordOpened(string path, uint pageIndex, double zoom)
+        public void RecordOpened(string path, uint pageIndex, double zoom, int maxZoomPercent = ZoomLimits.DefaultMaxZoomPercent)
         {
             var normalized = NormalizePath(path);
             var existing = _entries.FirstOrDefault(e =>
@@ -104,7 +104,7 @@ namespace MicaPDF
             {
                 Path = normalized,
                 PageIndex = pageIndex,
-                Zoom = Math.Clamp(zoom, 0.25, 5.0),
+                Zoom = ZoomLimits.ClampZoom(zoom, maxZoomPercent),
                 LastOpenedUtc = DateTime.UtcNow,
                 CoverFileName = coverFileName
             };

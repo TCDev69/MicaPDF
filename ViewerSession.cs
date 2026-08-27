@@ -36,7 +36,8 @@ namespace MicaPDF
             return Math.Min(pageIndex, pageCount - 1);
         }
 
-        public static double ClampZoom(double zoom) => Math.Clamp(zoom, 0.25, 5.0);
+        public static double ClampZoom(double zoom, int maxZoomPercent = ZoomLimits.DefaultMaxZoomPercent) =>
+            ZoomLimits.ClampZoom(zoom, maxZoomPercent);
 
         public static string FormatZoomPercent(double zoom) => $"{(zoom * 100):F0}%";
     }

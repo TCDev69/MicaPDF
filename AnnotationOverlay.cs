@@ -56,6 +56,9 @@ namespace MicaPDF
         private bool _selectingPdfText;
         private Point _pdfSelectStart;
         private Rect? _pdfSelectRect;
+        private CanvasRenderTarget? _inkCache;
+        private bool _inkCacheValid;
+        private DateTime _lastInkInvalidate = DateTime.MinValue;
 
         public double DefaultFontSize { get; set; } = 18;
         public bool DefaultBold { get; set; }
@@ -154,7 +157,7 @@ namespace MicaPDF
         {
             _textIndex = index;
             _selectedGlyphs.Clear();
-            _inkCanvas.Invalidate();
+            InvalidateInk(force: true);
         }
 
         public void SetSearchHighlight(Rect? pageRect)
@@ -193,7 +196,7 @@ namespace MicaPDF
             _selectingPdfText = false;
             _pdfSelectRect = null;
             _isPointerDown = false;
-            _inkCanvas.Invalidate();
+            InvalidateInk(force: true);
             RebuildTextLayer();
             SelectionChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -211,7 +214,7 @@ namespace MicaPDF
                 return;
             }
             ApplySearchHighlightLayout();
-            _inkCanvas.Invalidate();
+            InvalidateInk(force: true);
             RebuildTextLayer();
         }
 
@@ -235,7 +238,7 @@ namespace MicaPDF
                 _store.RemoveStroke(_pageIndex, _selectedStroke);
                 _selectedStroke = null;
                 deleted = true;
-                _inkCanvas.Invalidate();
+                InvalidateInk(force: true);
             }
 
             if (_selectedText != null)
@@ -275,11 +278,60 @@ namespace MicaPDF
 
         private float PageInflate(double overlayPx) => (float)(overlayPx / OverlayScale);
 
+        private void InvalidateInk(bool force = false)
+        {
+            _inkCacheValid = false;
+            if (force)
+            {
+                _inkCanvas.Invalidate();
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            if ((now - _lastInkInvalidate).TotalMilliseconds < 16)
+                return;
+
+            _lastInkInvalidate = now;
+            _inkCanvas.Invalidate();
+        }
+
+        private void TryRebuildInkCache(CanvasControl sender)
+        {
+            if (_store == null) return;
+
+            var width = (float)Math.Max(1, sender.ActualWidth);
+            var height = (float)Math.Max(1, sender.ActualHeight);
+            if (width < 2 || height < 2) return;
+
+            _inkCache?.Dispose();
+            _inkCache = new CanvasRenderTarget(sender, width, height, sender.Dpi);
+            using var ds = _inkCache.CreateDrawingSession();
+            ds.Clear(Microsoft.UI.Colors.Transparent);
+            var scale = (float)OverlayScale;
+            ds.Transform = Matrix3x2.CreateScale(scale);
+            foreach (var stroke in _store.GetStrokes(_pageIndex).GetStrokes())
+                DrawStroke(ds, stroke);
+            ds.Transform = Matrix3x2.Identity;
+            _inkCacheValid = true;
+        }
+
         private void InkCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
         {
             if (_store == null) return;
             var scale = (float)OverlayScale;
-            args.DrawingSession.Transform = Matrix3x2.CreateScale(scale);
+
+            if (_wetPoints.Count <= 1 && !_inkCacheValid)
+                TryRebuildInkCache(sender);
+
+            if (_inkCacheValid && _inkCache != null)
+                args.DrawingSession.DrawImage(_inkCache);
+            else
+            {
+                args.DrawingSession.Transform = Matrix3x2.CreateScale(scale);
+                foreach (var stroke in _store.GetStrokes(_pageIndex).GetStrokes())
+                    DrawStroke(args.DrawingSession, stroke);
+                args.DrawingSession.Transform = Matrix3x2.Identity;
+            }
 
             foreach (var glyph in _selectedGlyphs)
                 args.DrawingSession.FillRectangle(ToWin2d(glyph.Bounds), Color.FromArgb(90, 51, 153, 255));
@@ -287,15 +339,14 @@ namespace MicaPDF
             if (_pdfSelectRect is Rect r)
                 args.DrawingSession.DrawRectangle(ToWin2d(r), Color.FromArgb(180, 51, 153, 255), 1f / scale);
 
-            foreach (var stroke in _store.GetStrokes(_pageIndex).GetStrokes())
-                DrawStroke(args.DrawingSession, stroke);
-
             if (_wetPoints.Count > 1)
             {
                 try
                 {
                     var wet = _strokeBuilder.CreateStrokeFromInkPoints(_wetPoints, Matrix3x2.Identity);
+                    args.DrawingSession.Transform = Matrix3x2.CreateScale(scale);
                     DrawStroke(args.DrawingSession, wet);
+                    args.DrawingSession.Transform = Matrix3x2.Identity;
                 }
                 catch { }
             }
@@ -303,10 +354,10 @@ namespace MicaPDF
             if (_selectedStroke != null)
             {
                 var bounds = _selectedStroke.BoundingRect;
+                args.DrawingSession.Transform = Matrix3x2.CreateScale(scale);
                 args.DrawingSession.DrawRectangle(bounds, Color.FromArgb(180, 0, 120, 215), 2f / scale);
+                args.DrawingSession.Transform = Matrix3x2.Identity;
             }
-
-            args.DrawingSession.Transform = Matrix3x2.Identity;
         }
 
         private static Windows.Foundation.Rect ToWin2d(Rect r) => r;
@@ -400,7 +451,7 @@ namespace MicaPDF
                     _isPointerDown = true;
                     _activePointerId = e.Pointer.PointerId;
                     _root.CapturePointer(e.Pointer);
-                    _inkCanvas.Invalidate();
+                    InvalidateInk(force: true);
                     RebuildTextLayer();
                     SelectionChanged?.Invoke(this, EventArgs.Empty);
                     e.Handled = true;
@@ -411,7 +462,7 @@ namespace MicaPDF
                 _selectedStroke = null;
                 _selectedGlyphs.Clear();
                 _pdfSelectRect = null;
-                _inkCanvas.Invalidate();
+                InvalidateInk(force: true);
                 RebuildTextLayer();
                 SelectionChanged?.Invoke(this, EventArgs.Empty);
                 return;
@@ -481,7 +532,7 @@ namespace MicaPDF
                     if (point.PointerDeviceType != PointerDeviceType.Mouse && !point.IsInContact)
                         return;
                     _wetPoints.Add(CreateInkPoint(point, pos));
-                    _inkCanvas.Invalidate();
+                    InvalidateInk();
                     break;
                 case AnnotationTool.Select:
                     if (_selectingPdfText)
@@ -489,7 +540,7 @@ namespace MicaPDF
                         _pdfSelectRect = NormalizeRect(_pdfSelectStart, pos);
                         _selectedGlyphs.Clear();
                         _selectedGlyphs.AddRange(_textIndex?.GlyphsInRect(_pageIndex, _pdfSelectRect.Value) ?? new List<PdfGlyph>());
-                        _inkCanvas.Invalidate();
+                        InvalidateInk(force: true);
                     }
                     else
                     {
@@ -525,7 +576,7 @@ namespace MicaPDF
             {
                 _selectingPdfText = false;
                 _pdfSelectRect = null;
-                _inkCanvas.Invalidate();
+                InvalidateInk(force: true);
             }
             else if (_tool == AnnotationTool.Select)
             {
@@ -545,7 +596,7 @@ namespace MicaPDF
 
             _wetPoints.Clear();
             try { _root.ReleasePointerCapture(pointer); } catch { }
-            _inkCanvas.Invalidate();
+            InvalidateInk(force: true);
         }
 
         private static InkPoint CreateInkPoint(PointerPoint point, Point pagePos)
@@ -566,7 +617,7 @@ namespace MicaPDF
                 _store.RemoveStroke(_pageIndex, hit);
                 if (ReferenceEquals(_selectedStroke, hit))
                     _selectedStroke = null;
-                _inkCanvas.Invalidate();
+                InvalidateInk(force: true);
                 AnnotationsChanged?.Invoke(this, EventArgs.Empty);
                 return;
             }
@@ -591,7 +642,7 @@ namespace MicaPDF
             _selectedStroke = _selectedText == null ? _store.HitTestStroke(_pageIndex, pos, PageInflate(12)) : null;
             _lastDragPos = pos;
             _moveOrigin = pos;
-            _inkCanvas.Invalidate();
+            InvalidateInk(force: true);
             RebuildTextLayer();
             SelectionChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -607,7 +658,7 @@ namespace MicaPDF
             {
                 _selectedStroke.PointTransform =
                     _selectedStroke.PointTransform * Matrix3x2.CreateTranslation((float)dx, (float)dy);
-                _inkCanvas.Invalidate();
+                InvalidateInk(force: true);
                 AnnotationsChanged?.Invoke(this, EventArgs.Empty);
             }
 
