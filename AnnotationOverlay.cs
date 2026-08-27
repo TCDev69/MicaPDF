@@ -31,9 +31,11 @@ namespace MicaPDF
         private readonly Grid _root;
         private readonly CanvasControl _inkCanvas;
         private readonly Canvas _textLayer;
+        private readonly Microsoft.UI.Xaml.Shapes.Rectangle _searchHighlight;
         private readonly InkStrokeBuilder _strokeBuilder = new();
         private readonly List<InkPoint> _wetPoints = new();
         private readonly List<PdfGlyph> _selectedGlyphs = new();
+        private Rect? _searchRect;
 
         private AnnotationStore? _store;
         private AnnotationHistory? _history;
@@ -81,8 +83,18 @@ namespace MicaPDF
                 IsHitTestVisible = false
             };
 
+            _searchHighlight = new Microsoft.UI.Xaml.Shapes.Rectangle
+            {
+                Fill = new SolidColorBrush(Color.FromArgb(80, 255, 200, 0)),
+                Stroke = new SolidColorBrush(Color.FromArgb(200, 255, 160, 0)),
+                StrokeThickness = 1.5,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false
+            };
+
             _root = new Grid { Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
             _root.Children.Add(_inkCanvas);
+            _root.Children.Add(_searchHighlight);
             _root.Children.Add(_textLayer);
             _root.PointerPressed += OnPointerPressed;
             _root.PointerMoved += OnPointerMoved;
@@ -125,6 +137,8 @@ namespace MicaPDF
             }
         }
 
+        public uint PageIndex => _pageIndex;
+
         public void Attach(AnnotationStore store, uint pageIndex, double pageWidth, double pageHeight)
         {
             _store = store;
@@ -141,6 +155,31 @@ namespace MicaPDF
             _textIndex = index;
             _selectedGlyphs.Clear();
             _inkCanvas.Invalidate();
+        }
+
+        public void SetSearchHighlight(Rect? pageRect)
+        {
+            _searchRect = pageRect;
+            ApplySearchHighlightLayout();
+        }
+
+        public void ClearSearchHighlight() => SetSearchHighlight(null);
+
+        private void ApplySearchHighlightLayout()
+        {
+            if (_searchRect is not { } r || r.Width <= 0 || r.Height <= 0)
+            {
+                _searchHighlight.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var scale = OverlayScale;
+            _searchHighlight.HorizontalAlignment = HorizontalAlignment.Left;
+            _searchHighlight.VerticalAlignment = VerticalAlignment.Top;
+            _searchHighlight.Margin = new Thickness(r.X * scale, r.Y * scale, 0, 0);
+            _searchHighlight.Width = Math.Max(2, r.Width * scale);
+            _searchHighlight.Height = Math.Max(2, r.Height * scale);
+            _searchHighlight.Visibility = Visibility.Visible;
         }
 
         public void SetTool(AnnotationTool tool)
@@ -171,6 +210,7 @@ namespace MicaPDF
             {
                 return;
             }
+            ApplySearchHighlightLayout();
             _inkCanvas.Invalidate();
             RebuildTextLayer();
         }

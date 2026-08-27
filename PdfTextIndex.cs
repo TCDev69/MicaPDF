@@ -76,18 +76,18 @@ namespace MicaPDF
                             advance = Math.Sqrt(dx * dx + dy * dy);
                         }
 
-                        var height = letter.GlyphRectangle.Height;
+                        var height = letter.BoundingBox.Height;
                         if (height <= 0)
                             height = letter.PointSize > 0 ? letter.PointSize : Math.Max(1, letter.FontSize);
 
-                        // Prefer advance box for hit-testing; GlyphRectangle alone is often too narrow.
+                        // Prefer advance box for hit-testing; BoundingBox alone is often too narrow.
                         var pdfLeft = letter.StartBaseLine.X;
-                        var pdfBottom = Math.Min(letter.StartBaseLine.Y, letter.GlyphRectangle.Bottom);
-                        var pdfRight = pdfLeft + Math.Max(advance, letter.GlyphRectangle.Width);
-                        var pdfTop = Math.Max(letter.GlyphRectangle.Top, pdfBottom + height);
+                        var pdfBottom = Math.Min(letter.StartBaseLine.Y, letter.BoundingBox.Bottom);
+                        var pdfRight = pdfLeft + Math.Max(advance, letter.BoundingBox.Width);
+                        var pdfTop = Math.Max(letter.BoundingBox.Top, pdfBottom + height);
                         if (pdfRight <= pdfLeft || pdfTop <= pdfBottom)
                         {
-                            var g = letter.GlyphRectangle;
+                            var g = letter.BoundingBox;
                             pdfLeft = g.Left;
                             pdfBottom = g.Bottom;
                             pdfRight = g.Right;
@@ -196,6 +196,11 @@ namespace MicaPDF
             winH = Math.Max(0.5, maxY - minY);
         }
 
+        public IReadOnlyCollection<uint> PageIndices => _glyphs.Keys;
+
+        public IReadOnlyList<PdfGlyph> GetGlyphs(uint pageIndex) =>
+            _glyphs.TryGetValue(pageIndex, out var list) ? list : Array.Empty<PdfGlyph>();
+
         public PdfGlyph? HitTest(uint pageIndex, Point pagePoint)
         {
             if (!_glyphs.TryGetValue(pageIndex, out var list)) return null;
@@ -214,6 +219,52 @@ namespace MicaPDF
                 return new List<PdfGlyph>();
 
             return list.Where(g => Intersects(g.Bounds, pageRect)).ToList();
+        }
+
+        /// <summary>
+        /// Line-oriented selection: glyphs from start→end by reading order (baseline rows).
+        /// </summary>
+        public List<PdfGlyph> GlyphsInLineRange(uint pageIndex, Point start, Point end)
+        {
+            if (!_glyphs.TryGetValue(pageIndex, out var list) || list.Count == 0)
+                return new List<PdfGlyph>();
+
+            var startG = HitTest(pageIndex, start) ?? NearestGlyph(list, start);
+            var endG = HitTest(pageIndex, end) ?? NearestGlyph(list, end);
+            if (startG == null || endG == null)
+                return new List<PdfGlyph>();
+
+            var ordered = list
+                .OrderBy(g => Math.Round(g.BaselineY / 2) * 2)
+                .ThenBy(g => g.Bounds.X)
+                .ThenBy(g => g.TextSequence)
+                .ToList();
+
+            var i0 = ordered.IndexOf(startG);
+            var i1 = ordered.IndexOf(endG);
+            if (i0 < 0 || i1 < 0)
+                return new List<PdfGlyph>();
+            if (i1 < i0) (i0, i1) = (i1, i0);
+
+            return ordered.GetRange(i0, i1 - i0 + 1);
+        }
+
+        private static PdfGlyph? NearestGlyph(List<PdfGlyph> list, Point p)
+        {
+            PdfGlyph? best = null;
+            var bestDist = double.MaxValue;
+            foreach (var g in list)
+            {
+                var cx = g.Bounds.X + g.Bounds.Width / 2;
+                var cy = g.BaselineY;
+                var d = (cx - p.X) * (cx - p.X) + (cy - p.Y) * (cy - p.Y);
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    best = g;
+                }
+            }
+            return best;
         }
 
         public static string BuildText(IReadOnlyList<PdfGlyph> glyphs)

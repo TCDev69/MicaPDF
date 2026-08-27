@@ -9,7 +9,7 @@ namespace MicaPDF
         private readonly Dictionary<(uint Page, int ZoomKey), LinkedListNode<CacheEntry>> _map = new();
         private readonly LinkedList<CacheEntry> _lru = new();
 
-        public PdfPageCache(int capacity = 16)
+        public PdfPageCache(int capacity = 48)
         {
             _capacity = capacity;
         }
@@ -47,6 +47,26 @@ namespace MicaPDF
                 var last = _lru.Last.Value;
                 _map.Remove((last.Page, last.ZoomKey));
                 _lru.RemoveLast();
+            }
+        }
+
+        /// <summary>Drops entries whose zoom key is farther than <paramref name="keepDistance"/> from <paramref name="keepZoomKey"/>.</summary>
+        public void TrimDistantZoom(int keepZoomKey, int keepDistance = 50)
+        {
+            var toRemove = new List<(uint Page, int ZoomKey)>();
+            foreach (var key in _map.Keys)
+            {
+                if (System.Math.Abs(key.ZoomKey - keepZoomKey) > keepDistance)
+                    toRemove.Add(key);
+            }
+
+            foreach (var key in toRemove)
+            {
+                if (_map.TryGetValue(key, out var node))
+                {
+                    _lru.Remove(node);
+                    _map.Remove(key);
+                }
             }
         }
 

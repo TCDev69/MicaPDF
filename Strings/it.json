@@ -45,6 +45,9 @@
   "menu.zoomout": "Riduci",
   "menu.zoomreset": "Dimensione reale",
   "menu.zoomfit": "Adatta pagina",
+  "menu.zoomfit.height": "Adatta altezza",
+  "menu.zoomfit.width": "Adatta larghezza",
+  "menu.find": "Cerca",
   "menu.gotopage": "Vai a pagina...",
   "menu.nextpage": "Pagina successiva",
   "menu.prevpage": "Pagina precedente",
@@ -132,5 +135,15 @@
   "update.githubStatus": "GitHub ha risposto {0}.",
   "export.readError": "Questo PDF non può essere letto per l'esportazione (potrebbe essere crittografato o avere una struttura non supportata). {0}",
   "outline.header": "Capitoli",
-  "outline.empty": "Questo documento non ha un indice."
+  "outline.empty": "Questo documento non ha un indice.",
+  "find.placeholder": "Cerca nel documento…",
+  "find.status": "{0} di {1}",
+  "find.none": "Nessun risultato",
+  "find.noText": "Nessun testo ricercabile",
+  "dialog.password.title": "Password richiesta",
+  "dialog.password.content": "Questo PDF è protetto. Inserisci la password per aprirlo.",
+  "dialog.password.placeholder": "Password",
+  "dialog.password.unlock": "Sblocca",
+  "dialog.password.cancel": "Annulla",
+  "dialog.password.failed": "Password errata o impossibile aprire il PDF."
 }

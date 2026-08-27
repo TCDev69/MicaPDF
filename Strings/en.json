@@ -45,6 +45,9 @@
   "menu.zoomout": "Zoom out",
   "menu.zoomreset": "Actual size",
   "menu.zoomfit": "Fit page",
+  "menu.zoomfit.height": "Fit height",
+  "menu.zoomfit.width": "Fit width",
+  "menu.find": "Find",
   "menu.gotopage": "Go to page...",
   "menu.nextpage": "Next page",
   "menu.prevpage": "Previous page",
@@ -132,5 +135,15 @@
   "update.githubStatus": "GitHub responded with {0}.",
   "export.readError": "This PDF cannot be read for export (it may be encrypted or use an unsupported structure). {0}",
   "outline.header": "Chapters",
-  "outline.empty": "This document has no table of contents."
+  "outline.empty": "This document has no table of contents.",
+  "find.placeholder": "Find in document…",
+  "find.status": "{0} of {1}",
+  "find.none": "No matches",
+  "find.noText": "No searchable text",
+  "dialog.password.title": "Password required",
+  "dialog.password.content": "This PDF is protected. Enter the password to open it.",
+  "dialog.password.placeholder": "Password",
+  "dialog.password.unlock": "Unlock",
+  "dialog.password.cancel": "Cancel",
+  "dialog.password.failed": "Incorrect password or the PDF could not be opened."
 }

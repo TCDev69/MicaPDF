@@ -11,6 +11,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="32"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Grid x:Name="TitleBarHost" Grid.Row="0">
@@ -41,7 +42,8 @@
                         PaneDisplayMode="Left"
                         OpenPaneLength="280"
                         IsPaneToggleButtonVisible="True"
-                        Header="">
+                        Header=""
+                        AutomationProperties.Name="Main navigation">
 
             <NavigationView.MenuItems>
                 <NavigationViewItem x:Name="OpenFileItem" Icon="OpenFile" Content="Open" Tag="open"/>
@@ -74,6 +76,14 @@
                     </NavigationViewItem.Icon>
                     <NavigationViewItem.Content>
                         <TextBlock Text="Fit page"/>
+                    </NavigationViewItem.Content>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="FindItem" Tag="find">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE721;"/>
+                    </NavigationViewItem.Icon>
+                    <NavigationViewItem.Content>
+                        <TextBlock Text="Find"/>
                     </NavigationViewItem.Content>
                 </NavigationViewItem>
 
@@ -206,15 +216,16 @@
                                             HorizontalScrollBarVisibility="Auto"
                                             VerticalScrollBarVisibility="Auto"
                                             ZoomMode="Enabled"
-                                            MinZoomFactor="0.5"
-                                            MaxZoomFactor="5.0"
+                                            MinZoomFactor="0.1"
+                                            MaxZoomFactor="10.0"
                                             HorizontalScrollMode="Enabled"
                                             VerticalScrollMode="Enabled"
                                             IsHorizontalRailEnabled="True"
                                             IsVerticalRailEnabled="True"
                                             ManipulationMode="System"
                                             PointerWheelChanged="PdfScrollViewer_PointerWheelChanged"
-                                            ViewChanged="PdfScrollViewer_ViewChanged">
+                                            ViewChanged="PdfScrollViewer_ViewChanged"
+                                            AutomationProperties.Name="PDF viewer">
                                     <Grid x:Name="PdfContainer"
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Top"
@@ -259,6 +270,49 @@
                                                     HorizontalAlignment="Center"/>
                                     </Grid>
                                 </ScrollViewer>
+
+                                <Border x:Name="FindBar"
+                                        Visibility="Collapsed"
+                                        VerticalAlignment="Top"
+                                        HorizontalAlignment="Right"
+                                        Margin="16"
+                                        Padding="12,8"
+                                        CornerRadius="8"
+                                        Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1"
+                                        AutomationProperties.Name="Find in document">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBox x:Name="FindTextBox"
+                                                 Width="220"
+                                                 PlaceholderText="Find..."
+                                                 KeyDown="FindTextBox_KeyDown"
+                                                 AutomationProperties.Name="Find text"/>
+                                        <TextBlock x:Name="FindStatusText"
+                                                   VerticalAlignment="Center"
+                                                   MinWidth="72"
+                                                   Opacity="0.8"
+                                                   FontSize="12"/>
+                                        <Button x:Name="FindPrevButton"
+                                                Content="&#xE76B;"
+                                                FontFamily="Segoe MDL2 Assets"
+                                                Click="FindPrevButton_Click"
+                                                AutomationProperties.Name="Previous result"
+                                                ToolTipService.ToolTip="Previous"/>
+                                        <Button x:Name="FindNextButton"
+                                                Content="&#xE76C;"
+                                                FontFamily="Segoe MDL2 Assets"
+                                                Click="FindNextButton_Click"
+                                                AutomationProperties.Name="Next result"
+                                                ToolTipService.ToolTip="Next"/>
+                                        <Button x:Name="FindCloseButton"
+                                                Content="&#xE711;"
+                                                FontFamily="Segoe MDL2 Assets"
+                                                Click="FindCloseButton_Click"
+                                                AutomationProperties.Name="Close find"
+                                                ToolTipService.ToolTip="Close"/>
+                                    </StackPanel>
+                                </Border>
 
                                 <local:InkToolBar x:Name="AnnotationToolbar"
                                                   Visibility="Collapsed"/>
@@ -344,9 +398,9 @@
                                                     <GridView.ItemsPanel>
                                                         <ItemsPanelTemplate>
                                                             <ItemsWrapGrid Orientation="Horizontal"
-                                                                           MaximumRowsOrColumns="3"
-                                                                           ItemWidth="300"
-                                                                           ItemHeight="420"
+                                                                           MaximumRowsOrColumns="4"
+                                                                           ItemWidth="220"
+                                                                           ItemHeight="320"
                                                                            HorizontalAlignment="Center"/>
                                                         </ItemsPanelTemplate>
                                                     </GridView.ItemsPanel>
@@ -362,9 +416,9 @@
                                                     </GridView.ItemContainerStyle>
                                                     <GridView.ItemTemplate>
                                                         <DataTemplate x:DataType="local:RecentFileDisplayItem">
-                                                            <Grid Width="280" Margin="0,0,0,4">
+                                                            <Grid Width="200" Margin="0,0,0,4">
                                                                 <StackPanel Spacing="10">
-                                                                    <Border Height="340"
+                                                                    <Border Height="240"
                                                                             CornerRadius="8"
                                                                             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                                                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -421,8 +475,44 @@
             </Grid>
         </NavigationView>
 
+        <Border x:Name="StatusBar"
+                Grid.Row="2"
+                Padding="12,4"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                AutomationProperties.Name="Status bar">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusMessageText"
+                           Grid.Column="0"
+                           FontSize="12"
+                           Opacity="0.85"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusPageText"
+                           Grid.Column="1"
+                           FontSize="12"
+                           Opacity="0.85"
+                           Margin="16,0"
+                           VerticalAlignment="Center"/>
+                <TextBlock x:Name="StatusZoomText"
+                           Grid.Column="2"
+                           FontSize="12"
+                           Opacity="0.85"
+                           MinWidth="48"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center"
+                           Text="50%"/>
+            </Grid>
+        </Border>
+
         <Grid x:Name="LoadingOverlay"
-              Grid.RowSpan="2"
+              Grid.RowSpan="3"
               Visibility="Collapsed"
               Background="#99000000"
               IsHitTestVisible="True"

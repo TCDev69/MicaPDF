@@ -41,7 +41,7 @@ namespace MicaPDF
         public static readonly string[] DefaultMenuOrder =
         {
             "open", "recentfiles", "print", "savewithannotations",
-            "zoomin", "zoomout", "zoomreset", "zoomfit",
+            "zoomin", "zoomout", "zoomreset", "zoomfit", "find",
             "outline", "gotopage", "nextpage", "prevpage", "doublepagemode", "coverpagemode", "continuousmode",
             "edit", "clearink"
         };

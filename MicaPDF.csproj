@@ -14,19 +14,27 @@
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>false</SelfContained>
-    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(PublishReadyToRun)' == ''">false</PublishReadyToRun>
     <TieredCompilation>true</TieredCompilation>
     <AssemblyName>MicaPDF</AssemblyName>
     <ApplicationIcon>MicaPDF.ico</ApplicationIcon>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
-    <PackageReference Include="PdfPig" Version="0.1.11" />
+    <PackageReference Include="PdfPig" Version="0.1.15" />
     <PackageReference Include="PDFsharp" Version="6.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="MicaPDF.Tests\**" />
+    <Content Remove="MicaPDF.Tests\**" />
+    <None Remove="MicaPDF.Tests\**" />
+    <EmbeddedResource Remove="MicaPDF.Tests\**" />
+    <Page Remove="MicaPDF.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

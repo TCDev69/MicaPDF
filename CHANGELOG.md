@@ -2,6 +2,28 @@
 
 All notable changes to MicaPDF are listed here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.1.0] - 2026-08-27
+
+### Added
+
+- Find in document (Ctrl+F) with match navigation
+- Unlock password-protected PDFs
+- Local annotation sidecar: ink/text autosaved under LocalAppData and restored on reopen
+- Fit height / fit width zoom (menu and toolbar)
+- Rotating diagnostic logs (keeps the last 3 files under LocalAppData)
+- Unit tests for zoom fit, logging trim, and annotation keys (`MicaPDF.Tests`)
+
+### Changed
+
+- Settings UI moved to XAML (`SettingsPanel.xaml`)
+- PdfPig updated to 0.1.15
+- Minimum OS called out as Windows 10 build 19041+
+- Viewer session and zoom-fit logic extracted for clearer layout handling
+
+### Fixed
+
+- Page cache and text index edge cases while searching / zooming
+
 ## [2.0.0] - 2026-08-25
 
 Major update. UI, annotations, and settings were largely rewritten since 1.3.0.

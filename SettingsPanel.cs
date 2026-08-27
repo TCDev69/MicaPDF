@@ -8,35 +8,35 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace MicaPDF
 {
-    public sealed class SettingsPanel : UserControl
+    public sealed partial class SettingsPanel : UserControl
     {
-        private readonly ComboBox _themeBox;
-        private readonly ComboBox _languageBox;
-        private readonly ComboBox _paneBox;
-        private readonly ComboBox _floatingBarBox;
-        private readonly ToggleSwitch _autoUpdateSwitch;
-        private readonly ToggleSwitch _wheelCtrlSwitch;
-        private readonly ToggleSwitch _confirmClearSwitch;
-        private readonly TextBox _repoBox;
-        private readonly ListView _menuList;
-        private readonly TextBlock _statusText;
-        private readonly TextBlock _titleBlock;
-        private readonly TextBlock _appearanceHeader;
-        private readonly TextBlock _viewerHeader;
-        private readonly TextBlock _updatesHeader;
-        private readonly TextBlock _menuHeader;
-        private readonly TextBlock _themeLabel;
-        private readonly TextBlock _languageLabel;
-        private readonly TextBlock _paneLabel;
-        private readonly TextBlock _floatingLabel;
-        private readonly TextBlock _autoUpdateLabel;
-        private readonly TextBlock _wheelLabel;
-        private readonly TextBlock _confirmLabel;
-        private readonly TextBlock _repoLabel;
-        private readonly TextBlock _menuItemsLabel;
-        private readonly Button _checkButton;
-        private readonly Button _upButton;
-        private readonly Button _downButton;
+        private ComboBox _themeBox = null!;
+        private ComboBox _languageBox = null!;
+        private ComboBox _paneBox = null!;
+        private ComboBox _floatingBarBox = null!;
+        private ToggleSwitch _autoUpdateSwitch = null!;
+        private ToggleSwitch _wheelCtrlSwitch = null!;
+        private ToggleSwitch _confirmClearSwitch = null!;
+        private TextBox _repoBox = null!;
+        private ListView _menuList = null!;
+        private TextBlock _statusText = null!;
+        private TextBlock _titleBlock = null!;
+        private TextBlock _appearanceHeader = null!;
+        private TextBlock _viewerHeader = null!;
+        private TextBlock _updatesHeader = null!;
+        private TextBlock _menuHeader = null!;
+        private TextBlock _themeLabel = null!;
+        private TextBlock _languageLabel = null!;
+        private TextBlock _paneLabel = null!;
+        private TextBlock _floatingLabel = null!;
+        private TextBlock _autoUpdateLabel = null!;
+        private TextBlock _wheelLabel = null!;
+        private TextBlock _confirmLabel = null!;
+        private TextBlock _repoLabel = null!;
+        private TextBlock _menuItemsLabel = null!;
+        private Button _checkButton = null!;
+        private Button _upButton = null!;
+        private Button _downButton = null!;
         private readonly ObservableCollection<MenuItemSetting> _menuItems = new();
         private AppSettings _settings = new();
         private bool _loading;
@@ -46,6 +46,8 @@ namespace MicaPDF
 
         public SettingsPanel()
         {
+            InitializeComponent();
+
             _themeBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
             _languageBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
             _paneBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
@@ -147,13 +149,7 @@ namespace MicaPDF
             root.Children.Add(_menuList);
             root.Children.Add(_statusText);
 
-            Content = new ScrollViewer
-            {
-                Padding = new Thickness(24),
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                Content = root
-            };
-
+            SettingsScroll.Content = root;
             RefreshLocalizedUi();
         }
 

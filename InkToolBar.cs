@@ -420,6 +420,7 @@ namespace MicaPDF
                 Tag = slot
             };
             ToolTipService.SetToolTip(button, tooltip);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, tooltip);
             button.Click += (_, _) => OnPenClicked(button, slot);
             return (button, top, tip);
         }
@@ -542,6 +543,7 @@ namespace MicaPDF
                 Content = new FontIcon { Glyph = glyph, FontSize = 16, Foreground = new SolidColorBrush(Colors.White) }
             };
             ToolTipService.SetToolTip(button, tooltip);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, tooltip);
             return button;
         }
 

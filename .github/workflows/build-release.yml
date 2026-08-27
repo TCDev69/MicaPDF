@@ -20,7 +20,7 @@ jobs:
     - name: Resolve version
       run: |
         $ver = $env:GITHUB_REF -replace '^refs/tags/v',''
-        if (-not $ver -or $ver -eq $env:GITHUB_REF) { $ver = '2.0.0' }
+        if (-not $ver -or $ver -eq $env:GITHUB_REF) { $ver = '2.1.0' }
         "APP_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
         Write-Host "Building version $ver"
       shell: pwsh
@@ -34,13 +34,16 @@ jobs:
       uses: microsoft/setup-msbuild@v2
       
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore MicaPDF.sln
+
+    - name: Run tests
+      run: dotnet test MicaPDF.Tests/MicaPDF.Tests.csproj -c Release --verbosity normal
       
     - name: Build x64 Release
-      run: dotnet publish -c Release -r win-x64 -p:Platform=x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
+      run: dotnet publish MicaPDF.csproj -c Release -r win-x64 -p:Platform=x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
       
     - name: Build ARM64 Release
-      run: dotnet publish -c Release -r win-arm64 -p:Platform=ARM64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
+      run: dotnet publish MicaPDF.csproj -c Release -r win-arm64 -p:Platform=ARM64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true
       
     - name: Create Release Folder
       run: |
@@ -102,7 +105,7 @@ jobs:
         - Settings: theme, language (EN/IT), menu layout, update check
 
         Requirements
-        - Windows 10 version 1809 (build 17763) or later
+        - Windows 10 version 2004 (build 19041) or later
         - Release builds are self-contained; no .NET install needed
 
         See CHANGELOG.md for version history.
@@ -129,7 +132,7 @@ jobs:
 
         ## Requirements
 
-        - Windows 10 (build 17763) or later
+        - Windows 10 (build 19041) or later
         - Self-contained build (no .NET install required)
 
         ## Download
@@ -267,7 +270,6 @@ jobs:
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-x64.iss
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-arm64.iss
       shell: pwsh
-      continue-on-error: true
       
     - name: Create Portable ZIP
       run: |

@@ -10,10 +10,13 @@ PDF viewer for Windows with Mica backdrop, zoom/navigation, ink and text annotat
 - Document outline (Chapters sidebar)
 - Page labels in the status bar when the PDF defines them
 - Recent files on the welcome screen (cover thumbnail, restores page and zoom)
-- Pen, highlighter, eraser, and text annotations with undo/redo
+- Find in document (Ctrl+F)
+- Pen, highlighter, eraser, and text annotations with undo/redo (autosaved locally)
 - Copy text from the PDF
+- Password-protected PDF unlock
 - Save annotated PDF (PDFsharp export)
 - Print
+- Rotating diagnostic logs (max 3) under LocalAppData
 - Settings: theme, language (EN/IT), menu order, toolbar placement, update check
 - Optional default PDF handler registration
 - Drag-and-drop to open files
@@ -30,7 +33,7 @@ Each zip includes `INSTALL.txt`, `README.md`, and `CHANGELOG.md`.
 
 ## Requirements
 
-- Windows 10 version 1809 (build 17763) or later
+- Windows 10 version 2004 (build 19041) or later
 - GitHub release builds bundle the .NET runtime (standalone)
 - Building from source requires .NET 10 SDK
 

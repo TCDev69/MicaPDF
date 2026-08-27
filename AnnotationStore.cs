@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Windows.Foundation;
 using Windows.UI.Input.Inking;
+// HashSet used by EnumeratePageIndices
 
 namespace MicaPDF
 {
@@ -85,6 +86,16 @@ namespace MicaPDF
         {
             _strokes.Clear();
             _texts.Clear();
+        }
+
+        public IEnumerable<uint> EnumeratePageIndices()
+        {
+            var set = new HashSet<uint>();
+            foreach (var key in _strokes.Keys)
+                set.Add(key);
+            foreach (var key in _texts.Keys)
+                set.Add(key);
+            return set;
         }
 
         public bool HasAny()
