@@ -16,6 +16,7 @@ namespace MicaPDF
 
         public string Tag { get; set; } = "";
         public string Title { get; set; } = "";
+        public string IconGlyph { get; set; } = MenuItemIcons.GetGlyph("");
 
         public bool IsVisible
         {
@@ -86,93 +87,7 @@ namespace MicaPDF
                 if (!File.Exists(StorePath))
                     return settings;
 
-                var dto = JsonSerializer.Deserialize<SettingsDto>(File.ReadAllText(StorePath));
-                if (dto == null)
-                    return settings;
-
-                if (Enum.TryParse<ElementTheme>(dto.Theme, out var parsedTheme))
-                    settings.Theme = parsedTheme;
-                if (!string.IsNullOrWhiteSpace(dto.Language))
-                {
-                    var lang = dto.Language.Trim();
-                    if (lang.Equals(Loc.System, StringComparison.OrdinalIgnoreCase) ||
-                        lang.Equals("System", StringComparison.OrdinalIgnoreCase))
-                        settings.Language = Loc.System;
-                    else if (lang.Equals(Loc.English, StringComparison.OrdinalIgnoreCase))
-                        settings.Language = Loc.English;
-                    else if (lang.Equals(Loc.Italian, StringComparison.OrdinalIgnoreCase))
-                        settings.Language = Loc.Italian;
-                }
-                if (!string.IsNullOrWhiteSpace(dto.MenuPosition))
-                    settings.MenuPosition = dto.MenuPosition;
-                else if (!string.IsNullOrWhiteSpace(dto.PaneDisplayMode))
-                {
-                    settings.MenuPosition = dto.PaneDisplayMode switch
-                    {
-                        "LeftCompact" => "LeftCompact",
-                        "Top" => "Top",
-                        _ => "Left"
-                    };
-                }
-                if (!string.IsNullOrWhiteSpace(dto.FloatingBarPosition))
-                    settings.FloatingBarPosition = dto.FloatingBarPosition;
-                settings.AutoUpdate = dto.AutoUpdate ?? true;
-                settings.WheelZoomRequiresCtrl = dto.WheelZoomRequiresCtrl;
-                if (dto.MaxZoomPercent is > 0)
-                    settings.MaxZoomPercent = ZoomLimits.SanitizeMaxZoomPercent(dto.MaxZoomPercent);
-                settings.ConfirmClearAnnotations = dto.ConfirmClearAnnotations;
-                if (!string.IsNullOrWhiteSpace(dto.GitHubRepository))
-                    settings.GitHubRepository = dto.GitHubRepository;
-                settings.PenSize = dto.PenSize;
-                settings.PenIsHighlighter = dto.PenIsHighlighter;
-                settings.PenColor = ParseColor(dto.PenColor, settings.PenColor);
-                settings.PenBlackColor = ParseColor(dto.PenBlackColor, settings.PenBlackColor);
-                settings.PenRedColor = ParseColor(dto.PenRedColor, settings.PenRedColor);
-                settings.PenGreenColor = ParseColor(dto.PenGreenColor, settings.PenGreenColor);
-                settings.HighlighterColor = ParseColor(dto.HighlighterColor, settings.HighlighterColor);
-                if (!string.IsNullOrWhiteSpace(dto.ActivePenSlot))
-                    settings.ActivePenSlot = dto.ActivePenSlot;
-                settings.NavPaneIsOpen = dto.NavPaneIsOpen;
-                settings.OutlinePaneIsOpen = dto.OutlinePaneIsOpen;
-                settings.HasShownDefaultReaderPrompt = dto.HasShownDefaultReaderPrompt;
-                settings.HiddenMenuTags.Clear();
-                foreach (var tag in dto.HiddenMenuTags ?? Array.Empty<string>())
-                {
-                    if (tag is "selectmode" or "penmode" or "textmode" or "eraser")
-                        continue;
-                    settings.HiddenMenuTags.Add(tag);
-                }
-
-                if (dto.MenuOrder is { Length: > 0 })
-                {
-                    var legacyMap = new Dictionary<string, string>
-                    {
-                        ["selectmode"] = "edit",
-                        ["penmode"] = "edit",
-                        ["textmode"] = "edit",
-                        ["eraser"] = "edit"
-                    };
-                    var parsed = new List<string>();
-                    foreach (var tag in dto.MenuOrder)
-                    {
-                        var mapped = legacyMap.TryGetValue(tag, out var next) ? next : tag;
-                        if (DefaultMenuOrder.Contains(mapped) && !parsed.Contains(mapped))
-                            parsed.Add(mapped);
-                    }
-                    foreach (var tag in DefaultMenuOrder)
-                    {
-                        if (!parsed.Contains(tag))
-                            parsed.Add(tag);
-                    }
-
-                    parsed.Remove("recentfiles");
-                    var recentInsertIdx = parsed.IndexOf("open");
-                    parsed.Insert(recentInsertIdx >= 0 ? recentInsertIdx + 1 : 0, "recentfiles");
-
-                    settings.MenuOrder.Clear();
-                    settings.MenuOrder.AddRange(parsed);
-                    EnsureOutlineBeforeGoToPage(settings.MenuOrder);
-                }
+                ApplyDto(settings, JsonSerializer.Deserialize<SettingsDto>(File.ReadAllText(StorePath)));
             }
             catch
             {
@@ -180,6 +95,113 @@ namespace MicaPDF
             }
 
             return settings;
+        }
+
+        public static AppSettings ImportFrom(string path)
+        {
+            var settings = new AppSettings();
+            var json = File.ReadAllText(path);
+            var dto = JsonSerializer.Deserialize<SettingsDto>(json)
+                ?? throw new InvalidOperationException(Loc.Get("settings.import.error"));
+            ApplyDto(settings, dto);
+            return settings;
+        }
+
+        public void ExportTo(string path)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path) ?? StoreDirectory);
+            var dto = CreateDto(this);
+            File.WriteAllText(path, JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        private static void ApplyDto(AppSettings settings, SettingsDto? dto)
+        {
+            if (dto == null)
+                return;
+
+            if (Enum.TryParse<ElementTheme>(dto.Theme, out var parsedTheme))
+                settings.Theme = parsedTheme;
+            if (!string.IsNullOrWhiteSpace(dto.Language))
+            {
+                var lang = dto.Language.Trim();
+                if (lang.Equals(Loc.System, StringComparison.OrdinalIgnoreCase) ||
+                    lang.Equals("System", StringComparison.OrdinalIgnoreCase))
+                    settings.Language = Loc.System;
+                else if (lang.Equals(Loc.English, StringComparison.OrdinalIgnoreCase))
+                    settings.Language = Loc.English;
+                else if (lang.Equals(Loc.Italian, StringComparison.OrdinalIgnoreCase))
+                    settings.Language = Loc.Italian;
+            }
+            if (!string.IsNullOrWhiteSpace(dto.MenuPosition))
+                settings.MenuPosition = dto.MenuPosition;
+            else if (!string.IsNullOrWhiteSpace(dto.PaneDisplayMode))
+            {
+                settings.MenuPosition = dto.PaneDisplayMode switch
+                {
+                    "LeftCompact" => "LeftCompact",
+                    "Top" => "Top",
+                    _ => "Left"
+                };
+            }
+            if (!string.IsNullOrWhiteSpace(dto.FloatingBarPosition))
+                settings.FloatingBarPosition = dto.FloatingBarPosition;
+            settings.AutoUpdate = dto.AutoUpdate ?? true;
+            settings.WheelZoomRequiresCtrl = dto.WheelZoomRequiresCtrl;
+            if (dto.MaxZoomPercent is > 0)
+                settings.MaxZoomPercent = ZoomLimits.SanitizeMaxZoomPercent(dto.MaxZoomPercent);
+            settings.ConfirmClearAnnotations = dto.ConfirmClearAnnotations;
+            if (!string.IsNullOrWhiteSpace(dto.GitHubRepository))
+                settings.GitHubRepository = dto.GitHubRepository;
+            settings.PenSize = dto.PenSize;
+            settings.PenIsHighlighter = dto.PenIsHighlighter;
+            settings.PenColor = ParseColor(dto.PenColor, settings.PenColor);
+            settings.PenBlackColor = ParseColor(dto.PenBlackColor, settings.PenBlackColor);
+            settings.PenRedColor = ParseColor(dto.PenRedColor, settings.PenRedColor);
+            settings.PenGreenColor = ParseColor(dto.PenGreenColor, settings.PenGreenColor);
+            settings.HighlighterColor = ParseColor(dto.HighlighterColor, settings.HighlighterColor);
+            if (!string.IsNullOrWhiteSpace(dto.ActivePenSlot))
+                settings.ActivePenSlot = dto.ActivePenSlot;
+            settings.NavPaneIsOpen = dto.NavPaneIsOpen;
+            settings.OutlinePaneIsOpen = dto.OutlinePaneIsOpen;
+            settings.HasShownDefaultReaderPrompt = dto.HasShownDefaultReaderPrompt;
+            settings.HiddenMenuTags.Clear();
+            foreach (var tag in dto.HiddenMenuTags ?? Array.Empty<string>())
+            {
+                if (tag is "selectmode" or "penmode" or "textmode" or "eraser")
+                    continue;
+                settings.HiddenMenuTags.Add(tag);
+            }
+
+            if (dto.MenuOrder is { Length: > 0 })
+            {
+                var legacyMap = new Dictionary<string, string>
+                {
+                    ["selectmode"] = "edit",
+                    ["penmode"] = "edit",
+                    ["textmode"] = "edit",
+                    ["eraser"] = "edit"
+                };
+                var parsed = new List<string>();
+                foreach (var tag in dto.MenuOrder)
+                {
+                    var mapped = legacyMap.TryGetValue(tag, out var next) ? next : tag;
+                    if (DefaultMenuOrder.Contains(mapped) && !parsed.Contains(mapped))
+                        parsed.Add(mapped);
+                }
+                foreach (var tag in DefaultMenuOrder)
+                {
+                    if (!parsed.Contains(tag))
+                        parsed.Add(tag);
+                }
+
+                parsed.Remove("recentfiles");
+                var recentInsertIdx = parsed.IndexOf("open");
+                parsed.Insert(recentInsertIdx >= 0 ? recentInsertIdx + 1 : 0, "recentfiles");
+
+                settings.MenuOrder.Clear();
+                settings.MenuOrder.AddRange(parsed);
+                EnsureOutlineBeforeGoToPage(settings.MenuOrder);
+            }
         }
 
         private static void EnsureOutlineBeforeGoToPage(List<string> order)
@@ -195,33 +217,35 @@ namespace MicaPDF
         public void Save()
         {
             Directory.CreateDirectory(StoreDirectory);
-            var dto = new SettingsDto
-            {
-                Theme = Theme.ToString(),
-                Language = Language,
-                MenuPosition = MenuPosition,
-                FloatingBarPosition = FloatingBarPosition,
-                AutoUpdate = AutoUpdate,
-                WheelZoomRequiresCtrl = WheelZoomRequiresCtrl,
-                MaxZoomPercent = MaxZoomPercent,
-                ConfirmClearAnnotations = ConfirmClearAnnotations,
-                GitHubRepository = GitHubRepository,
-                PenSize = PenSize,
-                PenIsHighlighter = PenIsHighlighter,
-                PenColor = FormatColor(PenColor),
-                PenBlackColor = FormatColor(PenBlackColor),
-                PenRedColor = FormatColor(PenRedColor),
-                PenGreenColor = FormatColor(PenGreenColor),
-                HighlighterColor = FormatColor(HighlighterColor),
-                ActivePenSlot = ActivePenSlot,
-                HiddenMenuTags = HiddenMenuTags.ToArray(),
-                MenuOrder = MenuOrder.ToArray(),
-                NavPaneIsOpen = NavPaneIsOpen,
-                OutlinePaneIsOpen = OutlinePaneIsOpen,
-                HasShownDefaultReaderPrompt = HasShownDefaultReaderPrompt
-            };
+            var dto = CreateDto(this);
             File.WriteAllText(StorePath, JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = true }));
         }
+
+        private static SettingsDto CreateDto(AppSettings settings) => new()
+        {
+            Theme = settings.Theme.ToString(),
+            Language = settings.Language,
+            MenuPosition = settings.MenuPosition,
+            FloatingBarPosition = settings.FloatingBarPosition,
+            AutoUpdate = settings.AutoUpdate,
+            WheelZoomRequiresCtrl = settings.WheelZoomRequiresCtrl,
+            MaxZoomPercent = settings.MaxZoomPercent,
+            ConfirmClearAnnotations = settings.ConfirmClearAnnotations,
+            GitHubRepository = settings.GitHubRepository,
+            PenSize = settings.PenSize,
+            PenIsHighlighter = settings.PenIsHighlighter,
+            PenColor = FormatColor(settings.PenColor),
+            PenBlackColor = FormatColor(settings.PenBlackColor),
+            PenRedColor = FormatColor(settings.PenRedColor),
+            PenGreenColor = FormatColor(settings.PenGreenColor),
+            HighlighterColor = FormatColor(settings.HighlighterColor),
+            ActivePenSlot = settings.ActivePenSlot,
+            HiddenMenuTags = settings.HiddenMenuTags.ToArray(),
+            MenuOrder = settings.MenuOrder.ToArray(),
+            NavPaneIsOpen = settings.NavPaneIsOpen,
+            OutlinePaneIsOpen = settings.OutlinePaneIsOpen,
+            HasShownDefaultReaderPrompt = settings.HasShownDefaultReaderPrompt
+        };
 
         private sealed class SettingsDto
         {

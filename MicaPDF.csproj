@@ -18,7 +18,7 @@
     <TieredCompilation>true</TieredCompilation>
     <AssemblyName>MicaPDF</AssemblyName>
     <ApplicationIcon>MicaPDF.ico</ApplicationIcon>
-    <Version>2.1.0</Version>
+    <Version>2.2.0</Version>
   </PropertyGroup>
 
   <!-- dotnet run without -p:Platform builds AnyCPU; Win2D/WinUI require a concrete platform -->
@@ -27,6 +27,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />

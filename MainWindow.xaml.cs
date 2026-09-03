@@ -105,6 +105,8 @@ namespace MicaPDF
                 ShowSettingsContent();
             };
             AppSettingsPanel.CheckUpdatesRequested += async (_, _) => await CheckForUpdatesAsync(forcePrompt: true);
+            AppSettingsPanel.ExportSettingsRequested += async (_, _) => await ExportSettingsAsync();
+            AppSettingsPanel.ImportSettingsRequested += async (_, _) => await ImportSettingsAsync();
             NavView.BackRequested += (_, _) => ShowViewerContent();
 
             if (Content is UIElement rootContent)
@@ -1503,7 +1505,8 @@ namespace MicaPDF
             if (_pdfDocument == null)
                 throw new InvalidOperationException("No document");
 
-            if (_pageCache.TryGet(pageIndex, ZoomKey, out var cached))
+            var cached = await _pageCache.TryGetBitmapAsync(pageIndex, ZoomKey);
+            if (cached != null)
                 return cached;
 
             if (showOverlayOnMiss)
@@ -1512,7 +1515,6 @@ namespace MicaPDF
             try
             {
                 var (destW, destH) = GetRasterDestinationSize(pageIndex);
-                var estimatedBytes = RasterSizeCalculator.EstimateRgbaBytes(destW, destH);
                 var pageSize = GetPageSize(pageIndex);
                 // #region agent log
                 DbgSession.Log("H2", "MainWindow.RenderPageBitmapAsync", "raster",
@@ -1523,7 +1525,6 @@ namespace MicaPDF
                         ZoomKey,
                         destW,
                         destH,
-                        estimatedBytes,
                         pageDipW = pageSize.Width,
                         pageDipH = pageSize.Height,
                         factor = PdfScrollViewer.ZoomFactor
@@ -1537,11 +1538,12 @@ namespace MicaPDF
                     DestinationHeight = destH
                 };
 
+                // RenderToStreamAsync emits PNG; store those bytes and keep only a few decoded images hot.
                 using var stream = new InMemoryRandomAccessStream();
                 await page.RenderToStreamAsync(stream, renderOptions);
-                var bitmapImage = new BitmapImage();
-                await bitmapImage.SetSourceAsync(stream);
-                _pageCache.Set(pageIndex, ZoomKey, bitmapImage, estimatedBytes);
+                var pngBytes = await PdfPageCache.CopyStreamToBytesAsync(stream);
+                var bitmapImage = await PdfPageCache.DecodeToBitmapAsync(pngBytes);
+                _pageCache.Set(pageIndex, ZoomKey, pngBytes, bitmapImage);
                 // #region agent log
                 DbgSession.Log("H7", "MainWindow.RenderPageBitmapAsync", "cache after render",
                     new
@@ -1551,7 +1553,7 @@ namespace MicaPDF
                         cacheBudget = _pageCache.ByteBudget,
                         destW,
                         destH,
-                        estimatedBytes
+                        compressedBytes = pngBytes.Length
                     }, "post-fix");
                 // #endregion
                 return bitmapImage;
@@ -2291,6 +2293,97 @@ namespace MicaPDF
             }
         }
 
+        private async Task ExportSettingsAsync()
+        {
+            try
+            {
+                var picker = new FileSavePicker();
+                InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+                picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+                picker.FileTypeChoices.Add("JSON", new[] { ".json" });
+                picker.SuggestedFileName = "micapdf-settings.json";
+                var file = await picker.PickSaveFileAsync();
+                if (file == null)
+                    return;
+
+                _settings.ExportTo(file.Path);
+                AppSettingsPanel.SetStatus(Loc.Get("settings.export.success"), InfoBarSeverity.Success);
+            }
+            catch (Exception ex)
+            {
+                AppSettingsPanel.SetStatus(Loc.Format("settings.export.error", ex.Message), InfoBarSeverity.Error);
+            }
+        }
+
+        private async Task ImportSettingsAsync()
+        {
+            try
+            {
+                var picker = new FileOpenPicker();
+                InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+                picker.FileTypeFilter.Add(".json");
+                picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+                var file = await picker.PickSingleFileAsync();
+                if (file == null)
+                    return;
+
+                var dialog = new ContentDialog
+                {
+                    Title = Loc.Get("settings.import.confirmTitle"),
+                    Content = Loc.Get("settings.import.confirmContent"),
+                    PrimaryButtonText = Loc.Get("settings.import.confirm"),
+                    CloseButtonText = Loc.Get("settings.import.cancel"),
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = Content.XamlRoot
+                };
+                if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+                    return;
+
+                var imported = AppSettings.ImportFrom(file.Path);
+                CopySettings(imported, _settings);
+                _settings.Save();
+                ApplySettingsToUi();
+                AppSettingsPanel.LoadSettings(_settings);
+                ShowSettingsContent();
+                AppSettingsPanel.SetStatus(Loc.Get("settings.import.success"), InfoBarSeverity.Success);
+            }
+            catch (Exception ex)
+            {
+                AppSettingsPanel.SetStatus(
+                    ex is InvalidOperationException ? ex.Message : Loc.Get("settings.import.error"),
+                    InfoBarSeverity.Error);
+            }
+        }
+
+        private static void CopySettings(AppSettings source, AppSettings target)
+        {
+            target.Theme = source.Theme;
+            target.Language = source.Language;
+            target.MenuPosition = source.MenuPosition;
+            target.FloatingBarPosition = source.FloatingBarPosition;
+            target.AutoUpdate = source.AutoUpdate;
+            target.WheelZoomRequiresCtrl = source.WheelZoomRequiresCtrl;
+            target.MaxZoomPercent = source.MaxZoomPercent;
+            target.ConfirmClearAnnotations = source.ConfirmClearAnnotations;
+            target.GitHubRepository = source.GitHubRepository;
+            target.PenSize = source.PenSize;
+            target.PenIsHighlighter = source.PenIsHighlighter;
+            target.PenColor = source.PenColor;
+            target.PenBlackColor = source.PenBlackColor;
+            target.PenRedColor = source.PenRedColor;
+            target.PenGreenColor = source.PenGreenColor;
+            target.HighlighterColor = source.HighlighterColor;
+            target.ActivePenSlot = source.ActivePenSlot;
+            target.NavPaneIsOpen = source.NavPaneIsOpen;
+            target.OutlinePaneIsOpen = source.OutlinePaneIsOpen;
+            target.HasShownDefaultReaderPrompt = source.HasShownDefaultReaderPrompt;
+            target.HiddenMenuTags.Clear();
+            foreach (var tag in source.HiddenMenuTags)
+                target.HiddenMenuTags.Add(tag);
+            target.MenuOrder.Clear();
+            target.MenuOrder.AddRange(source.MenuOrder);
+        }
+
         private async Task CheckForUpdatesAsync(bool forcePrompt)
         {
             var result = await UpdateChecker.CheckAsync(_settings.GitHubRepository);
@@ -2298,7 +2391,7 @@ namespace MicaPDF
             {
                 if (forcePrompt)
                 {
-                    AppSettingsPanel.SetStatus(result.Error);
+                    AppSettingsPanel.SetStatus(result.Error, InfoBarSeverity.Error);
                     var err = new ContentDialog
                     {
                         Title = Loc.Get("dialog.updateCheck.title"),

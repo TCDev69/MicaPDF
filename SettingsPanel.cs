@@ -3,189 +3,85 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Windows.System;
 
 namespace MicaPDF
 {
-    public sealed partial class SettingsPanel : UserControl
+    public sealed partial class SettingsPanel : UserControl, INotifyPropertyChanged
     {
-        private ComboBox _themeBox = null!;
-        private ComboBox _languageBox = null!;
-        private ComboBox _paneBox = null!;
-        private ComboBox _floatingBarBox = null!;
-        private ToggleSwitch _autoUpdateSwitch = null!;
-        private ToggleSwitch _wheelCtrlSwitch = null!;
-        private ComboBox _maxZoomBox = null!;
-        private ToggleSwitch _confirmClearSwitch = null!;
-        private TextBox _repoBox = null!;
-        private ListView _menuList = null!;
-        private TextBlock _statusText = null!;
-        private TextBlock _titleBlock = null!;
-        private TextBlock _appearanceHeader = null!;
-        private TextBlock _viewerHeader = null!;
-        private TextBlock _updatesHeader = null!;
-        private TextBlock _menuHeader = null!;
-        private TextBlock _themeLabel = null!;
-        private TextBlock _languageLabel = null!;
-        private TextBlock _paneLabel = null!;
-        private TextBlock _floatingLabel = null!;
-        private TextBlock _autoUpdateLabel = null!;
-        private TextBlock _wheelLabel = null!;
-        private TextBlock _maxZoomLabel = null!;
-        private TextBlock _confirmLabel = null!;
-        private TextBlock _repoLabel = null!;
-        private TextBlock _menuItemsLabel = null!;
-        private Button _checkButton = null!;
-        private Button _upButton = null!;
-        private Button _downButton = null!;
         private readonly ObservableCollection<MenuItemSetting> _menuItems = new();
+        private readonly ObservableCollection<MenuItemSetting> _filteredMenuItems = new();
         private AppSettings _settings = new();
         private bool _loading;
+        private Microsoft.UI.Dispatching.DispatcherQueueTimer? _statusTimer;
+        private string _menuShowLabel = "";
+        private string _menuHideLabel = "";
+        private double _dragHandleOpacity = 0.5;
 
         public event EventHandler? SettingsApplied;
         public event EventHandler? CheckUpdatesRequested;
+        public event EventHandler? ExportSettingsRequested;
+        public event EventHandler? ImportSettingsRequested;
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public string MenuShowLabel
+        {
+            get => _menuShowLabel;
+            private set { _menuShowLabel = value; OnPropertyChanged(); }
+        }
+
+        public string MenuHideLabel
+        {
+            get => _menuHideLabel;
+            private set { _menuHideLabel = value; OnPropertyChanged(); }
+        }
+
+        public double DragHandleOpacity
+        {
+            get => _dragHandleOpacity;
+            private set { _dragHandleOpacity = value; OnPropertyChanged(); }
+        }
 
         public SettingsPanel()
         {
             InitializeComponent();
-            BuildSettingsUi();
+            MenuList.ItemsSource = _menuItems;
+            WireEvents();
         }
 
-        private void BuildSettingsUi()
+        private void WireEvents()
         {
-            _themeBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
-            _languageBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
-            _paneBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
-            _floatingBarBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
-
-            _autoUpdateSwitch = new ToggleSwitch { HorizontalAlignment = HorizontalAlignment.Left };
-            _wheelCtrlSwitch = new ToggleSwitch { HorizontalAlignment = HorizontalAlignment.Left };
-            _maxZoomBox = new ComboBox { Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
-            _confirmClearSwitch = new ToggleSwitch { HorizontalAlignment = HorizontalAlignment.Left };
-            _repoBox = new TextBox
-            {
-                Width = 280,
-                HorizontalAlignment = HorizontalAlignment.Left
-            };
-            _statusText = new TextBlock { Opacity = 0.7, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Left };
-
-            _titleBlock = new TextBlock { FontSize = 22, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-            _appearanceHeader = SectionHeader();
-            _viewerHeader = SectionHeader();
-            _updatesHeader = SectionHeader();
-            _menuHeader = SectionHeader();
-            _themeLabel = new TextBlock();
-            _languageLabel = new TextBlock();
-            _paneLabel = new TextBlock();
-            _floatingLabel = new TextBlock();
-            _autoUpdateLabel = new TextBlock();
-            _wheelLabel = new TextBlock();
-            _maxZoomLabel = new TextBlock();
-            _confirmLabel = new TextBlock();
-            _repoLabel = new TextBlock();
-            _menuItemsLabel = new TextBlock();
-
-            _menuList = new ListView
-            {
-                Height = 280,
-                SelectionMode = ListViewSelectionMode.Single,
-                CanReorderItems = true,
-                AllowDrop = true,
-                CanDragItems = true,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Width = 420
-            };
-            _menuList.ItemTemplate = CreateMenuTemplate();
-            _menuList.ItemsSource = _menuItems;
-
-            _checkButton = new Button();
-            _checkButton.Click += (_, _) =>
-            {
-                ApplyFromUi(saveOnly: true);
-                CheckUpdatesRequested?.Invoke(this, EventArgs.Empty);
-            };
-
-            _upButton = new Button { Margin = new Thickness(0, 0, 8, 0) };
-            _upButton.Click += (_, _) => MoveSelected(-1);
-            _downButton = new Button();
-            _downButton.Click += (_, _) => MoveSelected(1);
-
-            _themeBox.SelectionChanged += (_, _) => AutoApply();
-            _languageBox.SelectionChanged += (_, _) => AutoApply();
-            _paneBox.SelectionChanged += (_, _) => AutoApply();
-            _floatingBarBox.SelectionChanged += (_, _) => AutoApply();
-            _autoUpdateSwitch.Toggled += (_, _) => AutoApply();
-            _wheelCtrlSwitch.Toggled += (_, _) => AutoApply();
-            _maxZoomBox.SelectionChanged += (_, _) => AutoApply();
-            _confirmClearSwitch.Toggled += (_, _) => AutoApply();
-            _repoBox.LostFocus += (_, _) => AutoApply();
+            ThemeBox.SelectionChanged += (_, _) => AutoApply();
+            LanguageBox.SelectionChanged += (_, _) => AutoApply();
+            PaneBox.SelectionChanged += (_, _) => AutoApply();
+            FloatingBarBox.SelectionChanged += (_, _) => AutoApply();
+            AutoUpdateSwitch.Toggled += (_, _) => AutoApply();
+            WheelCtrlSwitch.Toggled += (_, _) => AutoApply();
+            MaxZoomBox.SelectionChanged += (_, _) => AutoApply();
+            ConfirmClearSwitch.Toggled += (_, _) => AutoApply();
+            RepoBox.LostFocus += (_, _) => AutoApply();
             _menuItems.CollectionChanged += MenuItems_CollectionChanged;
-
-            var root = new StackPanel
-            {
-                Spacing = 10,
-                HorizontalAlignment = HorizontalAlignment.Left
-            };
-            root.Children.Add(_titleBlock);
-            root.Children.Add(_appearanceHeader);
-            root.Children.Add(_themeLabel);
-            root.Children.Add(_themeBox);
-            root.Children.Add(_languageLabel);
-            root.Children.Add(_languageBox);
-            root.Children.Add(_paneLabel);
-            root.Children.Add(_paneBox);
-            root.Children.Add(_floatingLabel);
-            root.Children.Add(_floatingBarBox);
-            root.Children.Add(_viewerHeader);
-            root.Children.Add(_wheelLabel);
-            root.Children.Add(_wheelCtrlSwitch);
-            root.Children.Add(_maxZoomLabel);
-            root.Children.Add(_maxZoomBox);
-            root.Children.Add(_confirmLabel);
-            root.Children.Add(_confirmClearSwitch);
-            root.Children.Add(_updatesHeader);
-            root.Children.Add(_autoUpdateLabel);
-            root.Children.Add(_autoUpdateSwitch);
-            root.Children.Add(_repoLabel);
-            root.Children.Add(_repoBox);
-            root.Children.Add(_checkButton);
-            root.Children.Add(_menuHeader);
-            root.Children.Add(_menuItemsLabel);
-            root.Children.Add(new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Children = { _upButton, _downButton }
-            });
-            root.Children.Add(_menuList);
-            root.Children.Add(_statusText);
-
-            SettingsScroll.Content = root;
-            RefreshLocalizedUi();
         }
-
-        private static TextBlock SectionHeader() => new()
-        {
-            FontSize = 14,
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            Margin = new Thickness(0, 16, 0, 4),
-            Opacity = 0.85
-        };
 
         public void LoadSettings(AppSettings settings)
         {
             _loading = true;
             _settings = settings;
             RefreshLocalizedUi();
-            SelectCombo(_themeBox, settings.Theme);
-            SelectCombo(_languageBox, settings.Language);
-            SelectCombo(_paneBox, settings.MenuPosition);
-            SelectCombo(_floatingBarBox, settings.FloatingBarPosition);
-            _autoUpdateSwitch.IsOn = settings.AutoUpdate;
-            _wheelCtrlSwitch.IsOn = settings.WheelZoomRequiresCtrl;
-            SelectCombo(_maxZoomBox, settings.MaxZoomPercent);
-            _confirmClearSwitch.IsOn = settings.ConfirmClearAnnotations;
-            _repoBox.Text = settings.GitHubRepository;
+            SelectCombo(ThemeBox, settings.Theme);
+            SelectCombo(LanguageBox, settings.Language);
+            SelectCombo(PaneBox, settings.MenuPosition);
+            SelectCombo(FloatingBarBox, settings.FloatingBarPosition);
+            AutoUpdateSwitch.IsOn = settings.AutoUpdate;
+            WheelCtrlSwitch.IsOn = settings.WheelZoomRequiresCtrl;
+            SelectCombo(MaxZoomBox, settings.MaxZoomPercent);
+            ConfirmClearSwitch.IsOn = settings.ConfirmClearAnnotations;
+            RepoBox.Text = settings.GitHubRepository;
+            VersionBadgeText.Text = UpdateChecker.GetCurrentVersion();
 
             foreach (var existing in _menuItems)
                 existing.PropertyChanged -= MenuItem_PropertyChanged;
@@ -193,58 +89,129 @@ namespace MicaPDF
 
             foreach (var tag in settings.MenuOrder)
             {
-                var item = new MenuItemSetting
+                _menuItems.Add(new MenuItemSetting
                 {
                     Tag = tag,
                     Title = Loc.MenuTitle(tag),
+                    IconGlyph = MenuItemIcons.GetGlyph(tag),
                     IsVisible = !settings.HiddenMenuTags.Contains(tag)
-                };
-                item.PropertyChanged += MenuItem_PropertyChanged;
-                _menuItems.Add(item);
+                });
             }
+
+            MenuSearchBox.Text = string.Empty;
+            RefreshMenuFilter();
             _loading = false;
         }
 
-        public void SetStatus(string message) => _statusText.Text = message;
+        public void SetStatus(string message, InfoBarSeverity severity = InfoBarSeverity.Informational)
+        {
+            StatusInfoBar.Title = severity switch
+            {
+                InfoBarSeverity.Error => Loc.Get("settings.status.error"),
+                InfoBarSeverity.Success => Loc.Get("settings.status.success"),
+                _ => string.Empty
+            };
+            StatusInfoBar.Message = message;
+            StatusInfoBar.Severity = severity;
+            StatusInfoBar.IsOpen = true;
+
+            _statusTimer?.Stop();
+            if (severity == InfoBarSeverity.Informational || severity == InfoBarSeverity.Success)
+            {
+                _statusTimer = DispatcherQueue.CreateTimer();
+                _statusTimer.Interval = TimeSpan.FromSeconds(3);
+                _statusTimer.Tick += (_, _) =>
+                {
+                    _statusTimer.Stop();
+                    StatusInfoBar.IsOpen = false;
+                };
+                _statusTimer.Start();
+            }
+        }
 
         public void RefreshLocalizedUi()
         {
             var prevLoading = _loading;
             _loading = true;
 
-            _titleBlock.Text = Loc.Get("settings.title");
-            _appearanceHeader.Text = Loc.Get("settings.section.appearance");
-            _viewerHeader.Text = Loc.Get("settings.section.viewer");
-            _updatesHeader.Text = Loc.Get("settings.section.updates");
-            _menuHeader.Text = Loc.Get("settings.section.menu");
-            _themeLabel.Text = Loc.Get("settings.theme");
-            _languageLabel.Text = Loc.Get("settings.language");
-            _paneLabel.Text = Loc.Get("settings.menuPosition");
-            _floatingLabel.Text = Loc.Get("settings.floatingBar");
-            _autoUpdateLabel.Text = Loc.Get("settings.autoUpdate");
-            _wheelLabel.Text = Loc.Get("settings.wheelZoom");
-            _maxZoomLabel.Text = Loc.Get("settings.maxZoom");
-            _confirmLabel.Text = Loc.Get("settings.confirmClear");
-            _repoLabel.Text = Loc.Get("settings.githubRepo");
-            _menuItemsLabel.Text = Loc.Get("settings.menuItems");
-            _checkButton.Content = Loc.Get("settings.checkUpdates");
-            _upButton.Content = Loc.Get("settings.moveUp");
-            _downButton.Content = Loc.Get("settings.moveDown");
-            _repoBox.PlaceholderText = Loc.Get("settings.repoPlaceholder");
+            TitleBlock.Text = Loc.Get("settings.title");
+            SubtitleBlock.Text = Loc.Get("settings.subtitle");
 
-            _autoUpdateSwitch.OnContent = Loc.Get("settings.yes");
-            _autoUpdateSwitch.OffContent = Loc.Get("settings.no");
-            _wheelCtrlSwitch.OnContent = Loc.Get("settings.wheel.ctrl");
-            _wheelCtrlSwitch.OffContent = Loc.Get("settings.wheel.direct");
-            _confirmClearSwitch.OnContent = Loc.Get("settings.confirm.ask");
-            _confirmClearSwitch.OffContent = Loc.Get("settings.confirm.immediate");
+            AppearanceExpander.Header = Loc.Get("settings.section.appearance");
+            AppearanceExpander.Description = Loc.Get("settings.section.appearance.desc");
+            ViewerExpander.Header = Loc.Get("settings.section.viewer");
+            ViewerExpander.Description = Loc.Get("settings.section.viewer.desc");
+            MenuExpander.Header = Loc.Get("settings.section.menu");
+            MenuExpander.Description = Loc.Get("settings.section.menu.desc");
+            UpdatesExpander.Header = Loc.Get("settings.section.updates");
+            UpdatesExpander.Description = Loc.Get("settings.section.updates.desc");
+            AdvancedExpander.Header = Loc.Get("settings.section.advanced");
+            AdvancedExpander.Description = Loc.Get("settings.section.advanced.desc");
+            AboutExpander.Header = Loc.Get("settings.section.about");
+            AboutExpander.Description = Loc.Get("settings.section.about.desc");
+
+            ThemeCard.Header = Loc.Get("settings.theme");
+            ThemeCard.Description = Loc.Get("settings.theme.desc");
+            LanguageCard.Header = Loc.Get("settings.language");
+            LanguageCard.Description = Loc.Get("settings.language.desc");
+            PaneCard.Header = Loc.Get("settings.menuPosition");
+            PaneCard.Description = Loc.Get("settings.menuPosition.desc");
+            FloatingBarCard.Header = Loc.Get("settings.floatingBar");
+            FloatingBarCard.Description = Loc.Get("settings.floatingBar.desc");
+
+            WheelCard.Header = Loc.Get("settings.wheelZoom");
+            WheelCard.Description = Loc.Get("settings.wheelZoom.desc");
+            MaxZoomCard.Header = Loc.Get("settings.maxZoom");
+            MaxZoomCard.Description = Loc.Get("settings.maxZoom.desc");
+            ConfirmClearCard.Header = Loc.Get("settings.confirmClear");
+            ConfirmClearCard.Description = Loc.Get("settings.confirmClear.desc");
+
+            MenuCard.Header = Loc.Get("settings.menu.list");
+            MenuCard.Description = Loc.Get("settings.menuItems");
+
+            AutoUpdateCard.Header = Loc.Get("settings.autoUpdate");
+            AutoUpdateCard.Description = Loc.Get("settings.autoUpdate.desc");
+            CheckUpdatesCard.Header = Loc.Get("settings.checkUpdates");
+            CheckUpdatesCard.Description = Loc.Get("settings.checkUpdates.desc");
+
+            RepoCard.Header = Loc.Get("settings.githubRepo");
+            RepoCard.Description = Loc.Get("settings.githubRepo.desc");
+            RepoBox.PlaceholderText = Loc.Get("settings.repoPlaceholder");
+            ExportCard.Header = Loc.Get("settings.advanced.export");
+            ExportCard.Description = Loc.Get("settings.advanced.exportDesc");
+            ImportCard.Header = Loc.Get("settings.advanced.import");
+            ImportCard.Description = Loc.Get("settings.advanced.importDesc");
+
+            VersionCard.Header = Loc.Get("settings.about.version");
+            VersionCard.Description = Loc.Get("settings.about.versionDesc");
+            VersionBadgeText.Text = UpdateChecker.GetCurrentVersion();
+            RepositoryLinkCard.Header = Loc.Get("settings.about.repository");
+            RepositoryLinkCard.Description = $"github.com/{_settings.GitHubRepository}";
+            LicenseCard.Header = Loc.Get("settings.about.license");
+            LicenseCard.Description = Loc.Get("settings.about.licenseDesc");
+
+            AutoUpdateSwitch.OnContent = Loc.Get("settings.yes");
+            AutoUpdateSwitch.OffContent = Loc.Get("settings.no");
+            WheelCtrlSwitch.OnContent = Loc.Get("settings.wheel.ctrl");
+            WheelCtrlSwitch.OffContent = Loc.Get("settings.wheel.direct");
+            ConfirmClearSwitch.OnContent = Loc.Get("settings.confirm.ask");
+            ConfirmClearSwitch.OffContent = Loc.Get("settings.confirm.immediate");
+
+            MenuShowLabel = Loc.Get("settings.show");
+            MenuHideLabel = Loc.Get("settings.hide");
+            ToolTipService.SetToolTip(UpButton, Loc.Get("settings.moveUp"));
+            ToolTipService.SetToolTip(DownButton, Loc.Get("settings.moveDown"));
+            ResetMenuButtonText.Text = Loc.Get("settings.menu.resetOrder");
+            ToolTipService.SetToolTip(ResetMenuButton, Loc.Get("settings.menu.resetOrder"));
+            MenuSearchBox.PlaceholderText = Loc.Get("settings.menu.searchPlaceholder");
+            AutomationProperties.SetName(MenuSearchBox, Loc.Get("settings.menu.search"));
+            AutomationProperties.SetName(MenuReorderPanel, Loc.Get("settings.menu.actions"));
 
             RefillThemeBox();
             RefillLanguageBox();
             RefillPaneBox();
             RefillFloatingBox();
             RefillMaxZoomBox();
-            _menuList.ItemTemplate = CreateMenuTemplate();
 
             foreach (var item in _menuItems)
                 item.Title = Loc.MenuTitle(item.Tag);
@@ -254,60 +221,101 @@ namespace MicaPDF
 
         private void RefillThemeBox()
         {
-            var selected = (_themeBox.SelectedItem as ComboBoxItem)?.Tag ?? ElementTheme.Default;
-            _themeBox.Items.Clear();
-            _themeBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.theme.system"), Tag = ElementTheme.Default });
-            _themeBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.theme.light"), Tag = ElementTheme.Light });
-            _themeBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.theme.dark"), Tag = ElementTheme.Dark });
-            SelectCombo(_themeBox, selected);
+            var selected = (ThemeBox.SelectedItem as ComboBoxItem)?.Tag ?? ElementTheme.Default;
+            ThemeBox.Items.Clear();
+            ThemeBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.theme.system"), Tag = ElementTheme.Default });
+            ThemeBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.theme.light"), Tag = ElementTheme.Light });
+            ThemeBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.theme.dark"), Tag = ElementTheme.Dark });
+            SelectCombo(ThemeBox, selected);
         }
 
         private void RefillLanguageBox()
         {
-            var selected = (_languageBox.SelectedItem as ComboBoxItem)?.Tag as string ?? Loc.System;
-            _languageBox.Items.Clear();
-            _languageBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.lang.system"), Tag = Loc.System });
-            _languageBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.lang.en"), Tag = Loc.English });
-            _languageBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.lang.it"), Tag = Loc.Italian });
-            SelectCombo(_languageBox, selected);
+            var selected = (LanguageBox.SelectedItem as ComboBoxItem)?.Tag as string ?? Loc.System;
+            LanguageBox.Items.Clear();
+            LanguageBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.lang.system"), Tag = Loc.System });
+            LanguageBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.lang.en"), Tag = Loc.English });
+            LanguageBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.lang.it"), Tag = Loc.Italian });
+            SelectCombo(LanguageBox, selected);
         }
 
         private void RefillPaneBox()
         {
-            var selected = (_paneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "Left";
-            _paneBox.Items.Clear();
-            _paneBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.left"), Tag = "Left" });
-            _paneBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.leftCompact"), Tag = "LeftCompact" });
-            _paneBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.right"), Tag = "Right" });
-            _paneBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.top"), Tag = "Top" });
-            SelectCombo(_paneBox, selected);
+            var selected = (PaneBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "Left";
+            PaneBox.Items.Clear();
+            PaneBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.left"), Tag = "Left" });
+            PaneBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.leftCompact"), Tag = "LeftCompact" });
+            PaneBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.right"), Tag = "Right" });
+            PaneBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.top"), Tag = "Top" });
+            SelectCombo(PaneBox, selected);
         }
 
         private void RefillFloatingBox()
         {
-            var selected = (_floatingBarBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "Bottom";
-            _floatingBarBox.Items.Clear();
-            _floatingBarBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.bottom"), Tag = "Bottom" });
-            _floatingBarBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.top"), Tag = "Top" });
-            _floatingBarBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.left"), Tag = "Left" });
-            _floatingBarBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.right"), Tag = "Right" });
-            SelectCombo(_floatingBarBox, selected);
+            var selected = (FloatingBarBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "Bottom";
+            FloatingBarBox.Items.Clear();
+            FloatingBarBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.bottom"), Tag = "Bottom" });
+            FloatingBarBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.top"), Tag = "Top" });
+            FloatingBarBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.left"), Tag = "Left" });
+            FloatingBarBox.Items.Add(new ComboBoxItem { Content = Loc.Get("settings.pos.right"), Tag = "Right" });
+            SelectCombo(FloatingBarBox, selected);
         }
 
         private void RefillMaxZoomBox()
         {
-            var selected = (_maxZoomBox.SelectedItem as ComboBoxItem)?.Tag as int?
+            var selected = (MaxZoomBox.SelectedItem as ComboBoxItem)?.Tag as int?
                 ?? ZoomLimits.DefaultMaxZoomPercent;
-            _maxZoomBox.Items.Clear();
+            MaxZoomBox.Items.Clear();
             foreach (var percent in new[] { 100, 150, 200, 300, 500 })
             {
-                _maxZoomBox.Items.Add(new ComboBoxItem
+                MaxZoomBox.Items.Add(new ComboBoxItem
                 {
                     Content = $"{percent}%",
                     Tag = percent
                 });
             }
-            SelectCombo(_maxZoomBox, selected);
+            SelectCombo(MaxZoomBox, selected);
+        }
+
+        private void RefreshMenuFilter()
+        {
+            var query = MenuSearchBox?.Text?.Trim();
+            var filterActive = !string.IsNullOrEmpty(query);
+
+            if (!filterActive)
+            {
+                if (!ReferenceEquals(MenuList.ItemsSource, _menuItems))
+                    MenuList.ItemsSource = _menuItems;
+                UpdateMenuReorderState();
+                return;
+            }
+
+            _filteredMenuItems.Clear();
+            foreach (var item in _menuItems)
+            {
+                if (item.Title.Contains(query!, StringComparison.OrdinalIgnoreCase))
+                    _filteredMenuItems.Add(item);
+            }
+
+            if (!ReferenceEquals(MenuList.ItemsSource, _filteredMenuItems))
+                MenuList.ItemsSource = _filteredMenuItems;
+            UpdateMenuReorderState();
+        }
+
+        private void MenuSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        {
+            if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput)
+                return;
+            RefreshMenuFilter();
+        }
+
+        private void UpdateMenuReorderState()
+        {
+            var filterActive = !string.IsNullOrWhiteSpace(MenuSearchBox.Text);
+            MenuList.CanReorderItems = !filterActive;
+            MenuList.CanDragItems = !filterActive;
+            MenuList.AllowDrop = !filterActive;
+            DragHandleOpacity = filterActive ? 0 : 0.5;
         }
 
         private void MenuItems_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -339,23 +347,23 @@ namespace MicaPDF
 
         private void ApplyFromUi(bool saveOnly = false)
         {
-            if (_themeBox.SelectedItem is ComboBoxItem themeItem && themeItem.Tag is ElementTheme theme)
+            if (ThemeBox.SelectedItem is ComboBoxItem themeItem && themeItem.Tag is ElementTheme theme)
                 _settings.Theme = theme;
-            if (_languageBox.SelectedItem is ComboBoxItem langItem && langItem.Tag is string lang)
+            if (LanguageBox.SelectedItem is ComboBoxItem langItem && langItem.Tag is string lang)
                 _settings.Language = lang;
-            if (_paneBox.SelectedItem is ComboBoxItem paneItem && paneItem.Tag is string pane)
+            if (PaneBox.SelectedItem is ComboBoxItem paneItem && paneItem.Tag is string pane)
                 _settings.MenuPosition = pane;
-            if (_floatingBarBox.SelectedItem is ComboBoxItem barItem && barItem.Tag is string barPos)
+            if (FloatingBarBox.SelectedItem is ComboBoxItem barItem && barItem.Tag is string barPos)
                 _settings.FloatingBarPosition = barPos;
 
-            _settings.AutoUpdate = _autoUpdateSwitch.IsOn;
-            _settings.WheelZoomRequiresCtrl = _wheelCtrlSwitch.IsOn;
-            if (_maxZoomBox.SelectedItem is ComboBoxItem maxItem && maxItem.Tag is int maxZoom)
+            _settings.AutoUpdate = AutoUpdateSwitch.IsOn;
+            _settings.WheelZoomRequiresCtrl = WheelCtrlSwitch.IsOn;
+            if (MaxZoomBox.SelectedItem is ComboBoxItem maxItem && maxItem.Tag is int maxZoom)
                 _settings.MaxZoomPercent = ZoomLimits.SanitizeMaxZoomPercent(maxZoom);
-            _settings.ConfirmClearAnnotations = _confirmClearSwitch.IsOn;
-            _settings.GitHubRepository = string.IsNullOrWhiteSpace(_repoBox.Text)
+            _settings.ConfirmClearAnnotations = ConfirmClearSwitch.IsOn;
+            _settings.GitHubRepository = string.IsNullOrWhiteSpace(RepoBox.Text)
                 ? AppSettings.DefaultGitHubRepository
-                : _repoBox.Text.Trim();
+                : RepoBox.Text.Trim();
 
             _settings.HiddenMenuTags.Clear();
             _settings.MenuOrder.Clear();
@@ -368,21 +376,85 @@ namespace MicaPDF
 
             Loc.Apply(_settings.Language);
             _settings.Save();
+            RepositoryLinkCard.Description = $"github.com/{_settings.GitHubRepository}";
+
             if (!saveOnly)
             {
                 SettingsApplied?.Invoke(this, EventArgs.Empty);
-                _statusText.Text = Loc.Get("settings.applied");
+                SetStatus(Loc.Get("settings.applied"), InfoBarSeverity.Success);
             }
         }
 
         private void MoveSelected(int delta)
         {
-            var index = _menuList.SelectedIndex;
+            if (!ReferenceEquals(MenuList.ItemsSource, _menuItems))
+                return;
+
+            var index = MenuList.SelectedIndex;
             if (index < 0) return;
             var newIndex = index + delta;
             if (newIndex < 0 || newIndex >= _menuItems.Count) return;
             _menuItems.Move(index, newIndex);
-            _menuList.SelectedIndex = newIndex;
+            MenuList.SelectedIndex = newIndex;
+        }
+
+        private void UpButton_Click(object sender, RoutedEventArgs e) => MoveSelected(-1);
+
+        private void DownButton_Click(object sender, RoutedEventArgs e) => MoveSelected(1);
+
+        private void ResetMenuButton_Click(object sender, RoutedEventArgs e)
+        {
+            _loading = true;
+            foreach (var existing in _menuItems)
+                existing.PropertyChanged -= MenuItem_PropertyChanged;
+            _menuItems.Clear();
+
+            foreach (var tag in AppSettings.DefaultMenuOrder)
+            {
+                _menuItems.Add(new MenuItemSetting
+                {
+                    Tag = tag,
+                    Title = Loc.MenuTitle(tag),
+                    IconGlyph = MenuItemIcons.GetGlyph(tag),
+                    IsVisible = true
+                });
+            }
+
+            _loading = false;
+            AutoApply();
+        }
+
+        private void CheckUpdatesCard_Click(object sender, RoutedEventArgs e)
+        {
+            ApplyFromUi(saveOnly: true);
+            CheckUpdatesRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void ExportCard_Click(object sender, RoutedEventArgs e)
+        {
+            ApplyFromUi(saveOnly: true);
+            ExportSettingsRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void ImportCard_Click(object sender, RoutedEventArgs e)
+        {
+            ImportSettingsRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        private async void RepositoryLinkCard_Click(object sender, RoutedEventArgs e)
+        {
+            var repo = string.IsNullOrWhiteSpace(_settings.GitHubRepository)
+                ? AppSettings.DefaultGitHubRepository
+                : _settings.GitHubRepository.Trim();
+            await Launcher.LaunchUriAsync(new Uri($"https://github.com/{repo}"));
+        }
+
+        private async void LicenseCard_Click(object sender, RoutedEventArgs e)
+        {
+            var repo = string.IsNullOrWhiteSpace(_settings.GitHubRepository)
+                ? AppSettings.DefaultGitHubRepository
+                : _settings.GitHubRepository.Trim();
+            await Launcher.LaunchUriAsync(new Uri($"https://github.com/{repo}/blob/main/LICENSE"));
         }
 
         private static void SelectCombo(ComboBox box, object tag)
@@ -402,22 +474,7 @@ namespace MicaPDF
                 box.SelectedIndex = 0;
         }
 
-        private static DataTemplate CreateMenuTemplate()
-        {
-            var show = Loc.Get("settings.show").Replace("\"", "&quot;");
-            var hide = Loc.Get("settings.hide").Replace("\"", "&quot;");
-            var xaml =
-                "<DataTemplate xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\">" +
-                "<Grid ColumnSpacing=\"12\">" +
-                "<Grid.ColumnDefinitions>" +
-                "<ColumnDefinition Width=\"*\"/>" +
-                "<ColumnDefinition Width=\"Auto\"/>" +
-                "</Grid.ColumnDefinitions>" +
-                "<TextBlock Text=\"{Binding Title}\" VerticalAlignment=\"Center\"/>" +
-                "<ToggleSwitch Grid.Column=\"1\" IsOn=\"{Binding IsVisible, Mode=TwoWay}\" OnContent=\"" + show +
-                "\" OffContent=\"" + hide + "\"/>" +
-                "</Grid></DataTemplate>";
-            return (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(xaml);
-        }
+        private void OnPropertyChanged([CallerMemberName] string? name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

@@ -17,9 +17,10 @@ PDF viewer for Windows with Mica backdrop, zoom/navigation, ink and text annotat
 - Save annotated PDF (PDFsharp export)
 - Print
 - Rotating diagnostic logs (max 3) under LocalAppData
-- Settings: theme, language (EN/IT), menu order, toolbar placement, update check
+- Settings: theme, language (EN/IT), max zoom, menu order with icons, toolbar placement, export/import, update check
 - Optional default PDF handler registration
 - Drag-and-drop to open files
+- Performance tweaks for large PDFs (page cache, raster caps)
 
 ## Download
 

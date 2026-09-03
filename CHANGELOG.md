@@ -2,6 +2,36 @@
 
 All notable changes to MicaPDF are listed here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.2.0] - 2026-09-03
+
+### Added
+
+- Configurable maximum zoom in Settings (50%–500%, default 150%)
+- Navigation menu grouped into sections (File, Zoom, Pages, Annotations)
+- Keyboard shortcut hints on menu items (EN/IT)
+- "Indexing…" status while building the find text index
+- Settings panel redesigned with Windows 11-style SettingsExpander/SettingsCard (Community Toolkit)
+- Export and import settings as JSON (Advanced section)
+- About section: version badge, GitHub repository link, license link
+- Menu item search/filter in Settings
+- Per-menu-item icons in the settings list
+- Reset menu order to default button
+- InfoBar feedback for settings actions (success/error with auto-dismiss)
+- Load diagnostics and raster size calculator for large-document performance
+
+### Changed
+
+- PDF rendering and page cache tuned for lower memory use (raster cap, overlay pooling, compressed PNG page cache with small decoded LRU)
+- Text index and find/zoom logic refactored for smoother navigation
+- Settings UI moved from code-built controls to declarative XAML layout
+- Settings descriptions added for all sections and options (EN/IT)
+- Update check errors now shown as error severity in the settings InfoBar
+- GitHub repository setting moved from Updates to Advanced section
+
+### Fixed
+
+- Duplicate PropertyChanged handlers on menu items causing double auto-save
+
 ## [2.1.0] - 2026-08-27
 
 ### Added

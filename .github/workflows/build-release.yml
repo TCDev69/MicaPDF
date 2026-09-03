@@ -20,7 +20,7 @@ jobs:
     - name: Resolve version
       run: |
         $ver = $env:GITHUB_REF -replace '^refs/tags/v',''
-        if (-not $ver -or $ver -eq $env:GITHUB_REF) { $ver = '2.1.0' }
+        if (-not $ver -or $ver -eq $env:GITHUB_REF) { $ver = '2.2.0' }
         "APP_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
         Write-Host "Building version $ver"
       shell: pwsh

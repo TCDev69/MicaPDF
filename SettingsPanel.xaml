@@ -1,14 +1,255 @@
 <UserControl
     x:Class="MicaPDF.SettingsPanel"
+    x:Name="Root"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:MicaPDF"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///CommunityToolkit.WinUI.Controls.SettingsControls/SettingsCard/SettingsCard.xaml"/>
+                <ResourceDictionary Source="ms-appx:///CommunityToolkit.WinUI.Controls.SettingsControls/SettingsExpander/SettingsExpander.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="MenuListItemStyle" TargetType="ListViewItem">
+                <Setter Property="Padding" Value="8,6"/>
+                <Setter Property="MinHeight" Value="44"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="CornerRadius" Value="4"/>
+            </Style>
+
+            <DataTemplate x:Key="MenuItemTemplate" x:DataType="local:MenuItemSetting">
+                <Grid ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Grid.Column="0"
+                              Glyph="&#xE76F;"
+                              FontSize="12"
+                              Opacity="{Binding ElementName=Root, Path=DragHandleOpacity}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,2,0"/>
+                    <Border Grid.Column="1"
+                            Width="32"
+                            Height="32"
+                            CornerRadius="16"
+                            Background="{ThemeResource LayerFillColorAltBrush}"
+                            VerticalAlignment="Center">
+                        <FontIcon Glyph="{x:Bind IconGlyph}"
+                                  FontSize="14"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="2"
+                               Text="{x:Bind Title}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               Margin="4,0,8,0"/>
+                    <ToggleSwitch Grid.Column="3"
+                                  IsOn="{x:Bind IsVisible, Mode=TwoWay}"
+                                  OnContent="{Binding ElementName=Root, Path=MenuShowLabel}"
+                                  OffContent="{Binding ElementName=Root, Path=MenuHideLabel}"
+                                  VerticalAlignment="Center"/>
+                </Grid>
+            </DataTemplate>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
     <ScrollViewer x:Name="SettingsScroll"
-                  Padding="24"
+                  Padding="32,24"
                   HorizontalAlignment="Stretch"
                   VerticalScrollBarVisibility="Auto"
-                  AutomationProperties.Name="Settings"/>
+                  AutomationProperties.Name="Settings">
+        <Grid MaxWidth="960"
+              HorizontalAlignment="Center"
+              Margin="0,0,24,24">
+            <StackPanel Spacing="8">
+                <StackPanel Spacing="4" Margin="0,0,0,16">
+                    <Image Source="ms-appx:///MicaPDF.ico"
+                           Width="40"
+                           Height="40"
+                           HorizontalAlignment="Left"/>
+                    <TextBlock x:Name="TitleBlock"
+                               FontSize="28"
+                               FontWeight="SemiBold"/>
+                    <TextBlock x:Name="SubtitleBlock"
+                               FontSize="14"
+                               Opacity="0.7"
+                               TextWrapping="Wrap"
+                               MaxWidth="560"/>
+                </StackPanel>
+
+                <InfoBar x:Name="StatusInfoBar"
+                         IsOpen="False"
+                         Severity="Informational"
+                         IsClosable="True"
+                         Margin="0,0,0,4"/>
+
+                <controls:SettingsExpander x:Name="AppearanceExpander" IsExpanded="True">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE790;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Name="ThemeCard">
+                            <controls:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE790;"/>
+                            </controls:SettingsCard.HeaderIcon>
+                            <ComboBox x:Name="ThemeBox" MinWidth="200" HorizontalAlignment="Stretch"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Name="LanguageCard">
+                            <controls:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE775;"/>
+                            </controls:SettingsCard.HeaderIcon>
+                            <ComboBox x:Name="LanguageBox" MinWidth="200" HorizontalAlignment="Stretch"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Name="PaneCard">
+                            <ComboBox x:Name="PaneBox" MinWidth="200" HorizontalAlignment="Stretch"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Name="FloatingBarCard">
+                            <ComboBox x:Name="FloatingBarBox" MinWidth="200" HorizontalAlignment="Stretch"/>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <controls:SettingsExpander x:Name="ViewerExpander" IsExpanded="True">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE7B3;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Name="WheelCard">
+                            <ToggleSwitch x:Name="WheelCtrlSwitch" HorizontalAlignment="Right"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Name="MaxZoomCard">
+                            <ComboBox x:Name="MaxZoomBox" MinWidth="200" HorizontalAlignment="Stretch"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Name="ConfirmClearCard">
+                            <ToggleSwitch x:Name="ConfirmClearSwitch" HorizontalAlignment="Right"/>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <controls:SettingsExpander x:Name="MenuExpander" IsExpanded="False">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE8FD;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Name="MenuCard">
+                            <StackPanel Spacing="12">
+                                <AutoSuggestBox x:Name="MenuSearchBox"
+                                                HorizontalAlignment="Stretch"
+                                                TextChanged="MenuSearchBox_TextChanged"
+                                                QueryIcon="Find"/>
+                                <StackPanel x:Name="MenuReorderPanel" Orientation="Horizontal" Spacing="4">
+                                    <AppBarButton x:Name="UpButton"
+                                                  LabelPosition="Collapsed"
+                                                  Click="UpButton_Click">
+                                        <AppBarButton.Icon>
+                                            <FontIcon Glyph="&#xE70E;"/>
+                                        </AppBarButton.Icon>
+                                    </AppBarButton>
+                                    <AppBarButton x:Name="DownButton"
+                                                  LabelPosition="Collapsed"
+                                                  Click="DownButton_Click">
+                                        <AppBarButton.Icon>
+                                            <FontIcon Glyph="&#xE70D;"/>
+                                        </AppBarButton.Icon>
+                                    </AppBarButton>
+                                    <Button x:Name="ResetMenuButton"
+                                            Click="ResetMenuButton_Click"
+                                            Margin="8,0,0,0">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon Glyph="&#xE777;" FontSize="14"/>
+                                            <TextBlock x:Name="ResetMenuButtonText"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                                <Border Background="{ThemeResource LayerFillColorAltBrush}"
+                                        CornerRadius="8"
+                                        Padding="4">
+                                    <ListView x:Name="MenuList"
+                                              MinHeight="240"
+                                              MaxHeight="360"
+                                              SelectionMode="Single"
+                                              CanReorderItems="True"
+                                              AllowDrop="True"
+                                              CanDragItems="True"
+                                              ItemTemplate="{StaticResource MenuItemTemplate}"
+                                              ItemContainerStyle="{StaticResource MenuListItemStyle}"/>
+                                </Border>
+                            </StackPanel>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <controls:SettingsExpander x:Name="UpdatesExpander" IsExpanded="False">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE896;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Name="AutoUpdateCard">
+                            <controls:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE895;"/>
+                            </controls:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="AutoUpdateSwitch" HorizontalAlignment="Right"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Name="CheckUpdatesCard"
+                                               IsClickEnabled="True"
+                                               Click="CheckUpdatesCard_Click"/>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <controls:SettingsExpander x:Name="AdvancedExpander" IsExpanded="False">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE943;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Name="RepoCard">
+                            <TextBox x:Name="RepoBox" MinWidth="280" HorizontalAlignment="Stretch"/>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Name="ExportCard"
+                                               IsClickEnabled="True"
+                                               Click="ExportCard_Click"/>
+                        <controls:SettingsCard x:Name="ImportCard"
+                                               IsClickEnabled="True"
+                                               Click="ImportCard_Click"/>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <controls:SettingsExpander x:Name="AboutExpander" IsExpanded="False">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE946;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Name="VersionCard">
+                            <controls:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE946;"/>
+                            </controls:SettingsCard.HeaderIcon>
+                            <Border Background="{ThemeResource LayerFillColorAltBrush}"
+                                    CornerRadius="4"
+                                    Padding="8,4"
+                                    HorizontalAlignment="Left">
+                                <TextBlock x:Name="VersionBadgeText"
+                                           FontWeight="SemiBold"
+                                           FontSize="13"/>
+                            </Border>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Name="RepositoryLinkCard"
+                                               IsClickEnabled="True"
+                                               Click="RepositoryLinkCard_Click"/>
+                        <controls:SettingsCard x:Name="LicenseCard"
+                                               IsClickEnabled="True"
+                                               Click="LicenseCard_Click"/>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </UserControl>
