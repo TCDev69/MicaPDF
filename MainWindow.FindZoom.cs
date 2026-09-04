@@ -67,10 +67,6 @@ namespace MicaPDF
             newFactor = Math.Clamp(newFactor, PdfScrollViewer.MinZoomFactor, PdfScrollViewer.MaxZoomFactor);
 
             var projected = baseZoom * newFactor;
-            // #region agent log
-            DbgSession.Log("H1", "FindZoom.ApplyInteractiveZoom", "zoom step",
-                new { targetAbsoluteZoom, baseZoom, oldFactor, newFactor, projected, maxFactor = PdfScrollViewer.MaxZoomFactor });
-            // #endregion
             if (Math.Abs(projected - targetAbsoluteZoom) > 0.05 &&
                 (newFactor >= PdfScrollViewer.MaxZoomFactor - 0.01 || newFactor <= PdfScrollViewer.MinZoomFactor + 0.01))
             {
@@ -130,11 +126,6 @@ namespace MicaPDF
                 var displayed = Math.Clamp(_currentZoom * factor, 0.25, maxZoom);
                 var delta = Math.Abs(displayed - _rasterZoom);
                 var needsReload = delta >= ZoomFitCalculator.ZoomStep;
-
-                // #region agent log
-                DbgSession.Log("H3", "FindZoom.SettleZoomAsync", "settle",
-                    new { factor, displayed, _rasterZoom, delta, needsReload, _currentZoom });
-                // #endregion
 
                 var oldRaster = _rasterZoom;
                 var vw = PdfScrollViewer.ViewportWidth;

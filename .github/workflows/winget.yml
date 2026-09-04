@@ -1,0 +1,34 @@
+name: Publish to WinGet
+
+# Uses Komac under the hood (vedantmgoyal9/winget-releaser).
+# Prerequisite: at least one version of TCDev.MicaPDF must already exist in
+# microsoft/winget-pkgs (initial PR from winget/2.2.0/). Then each published
+# GitHub Release opens an update PR via Komac.
+#
+# Setup:
+# 1. Fork microsoft/winget-pkgs under TCDev69 (or set fork-user).
+# 2. Create a classic PAT with public_repo scope → repo secret WINGET_TOKEN.
+
+on:
+  release:
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: GitHub release tag to publish (e.g. v2.2.0)
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: Publish TCDev.MicaPDF
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish to WinGet (Komac)
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: TCDev.MicaPDF
+          installers-regex: 'MicaPDF-Setup-(x64|ARM64)\.exe$'
+          max-versions-to-keep: 5
+          release-tag: ${{ inputs.release-tag || github.event.release.tag_name }}
+          token: ${{ secrets.WINGET_TOKEN }}

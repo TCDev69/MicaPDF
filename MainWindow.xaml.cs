@@ -1319,9 +1319,6 @@ namespace MicaPDF
 
         private async Task OpenFileDialog()
         {
-            // #region agent log
-            DbgSession.Log("H4", "MainWindow.OpenFileDialog", "open dialog invoked");
-            // #endregion
             try
             {
                 var picker = new FileOpenPicker();
@@ -1491,10 +1488,6 @@ namespace MicaPDF
                 loadDiag?.Dispose();
                 var wsMb = LoadDiagnostics.GetWorkingSetMb();
                 LoadDiagnostics.Complete(wsMb);
-                // #region agent log
-                DbgSession.Log("H5", "MainWindow.LoadPdfFile", "load complete",
-                    new { wsMb, zoom = _currentZoom, rasterZoom = _rasterZoom, maxZoomPercent = _settings.MaxZoomPercent });
-                // #endregion
             }
         }
 
@@ -1515,21 +1508,6 @@ namespace MicaPDF
             try
             {
                 var (destW, destH) = GetRasterDestinationSize(pageIndex);
-                var pageSize = GetPageSize(pageIndex);
-                // #region agent log
-                DbgSession.Log("H2", "MainWindow.RenderPageBitmapAsync", "raster",
-                    new
-                    {
-                        pageIndex,
-                        _currentZoom,
-                        ZoomKey,
-                        destW,
-                        destH,
-                        pageDipW = pageSize.Width,
-                        pageDipH = pageSize.Height,
-                        factor = PdfScrollViewer.ZoomFactor
-                    });
-                // #endregion
 
                 using var page = _pdfDocument.GetPage(pageIndex);
                 var renderOptions = new PdfPageRenderOptions
@@ -1544,18 +1522,6 @@ namespace MicaPDF
                 var pngBytes = await PdfPageCache.CopyStreamToBytesAsync(stream);
                 var bitmapImage = await PdfPageCache.DecodeToBitmapAsync(pngBytes);
                 _pageCache.Set(pageIndex, ZoomKey, pngBytes, bitmapImage);
-                // #region agent log
-                DbgSession.Log("H7", "MainWindow.RenderPageBitmapAsync", "cache after render",
-                    new
-                    {
-                        wsMb = LoadDiagnostics.GetWorkingSetMb(),
-                        cacheBytes = _pageCache.CurrentBytes,
-                        cacheBudget = _pageCache.ByteBudget,
-                        destW,
-                        destH,
-                        compressedBytes = pngBytes.Length
-                    }, "post-fix");
-                // #endregion
                 return bitmapImage;
             }
             finally

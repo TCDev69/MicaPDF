@@ -25,10 +25,6 @@ namespace MicaPDF
                 PopulateOutlineTree();
                 ApplyOutlinePaneState();
                 RefreshOutlineEmptyState();
-                // #region agent log
-                DbgSession.Log("H6", "MainWindow.EnsureOutlineLoadedAsync", "outline loaded",
-                    new { wsMb = LoadDiagnostics.GetWorkingSetMb(), hasOutline = outline?.HasEntries == true });
-                // #endregion
             }
             catch (OperationCanceledException)
             {

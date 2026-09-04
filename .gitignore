@@ -8,6 +8,7 @@ app.packages/
 # VS/VS Code
 .vs/
 .vscode/
+.cursor/
 *.suo
 *.userprefs
 
@@ -21,6 +22,9 @@ AppPackages/
 *.msi
 *.zip
 *.exe
+
+# Winget local installer downloads used for hashing
+winget/downloads/
 
 # Other
 *_profiled
